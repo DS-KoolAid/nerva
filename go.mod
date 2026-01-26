@@ -6,7 +6,7 @@ require (
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/projectdiscovery/wappalyzergo v0.2.17
 	github.com/spf13/cobra v1.5.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.44.0
 	golang.org/x/term v0.37.0
 	google.golang.org/grpc v1.78.0
