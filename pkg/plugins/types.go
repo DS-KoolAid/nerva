@@ -31,6 +31,7 @@ const (
 	UDP
 	TCP
 	TCPTLS
+	SCTP
 )
 
 const TypeService string = "service"
