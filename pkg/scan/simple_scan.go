@@ -32,6 +32,7 @@ var dialer = &net.Dialer{
 var sortedTCPPlugins = make([]plugins.Plugin, 0)
 var sortedTCPTLSPlugins = make([]plugins.Plugin, 0)
 var sortedUDPPlugins = make([]plugins.Plugin, 0)
+var sortedSCTPPlugins = make([]plugins.Plugin, 0)
 var tlsConfig = tls.Config{} //nolint:gosec
 
 func init() {
@@ -59,6 +60,7 @@ func setupPlugins() {
 	sortedTCPPlugins = append(sortedTCPPlugins, plugins.Plugins[plugins.TCP]...)
 	sortedTCPTLSPlugins = append(sortedTCPTLSPlugins, plugins.Plugins[plugins.TCPTLS]...)
 	sortedUDPPlugins = append(sortedUDPPlugins, plugins.Plugins[plugins.UDP]...)
+	sortedSCTPPlugins = append(sortedSCTPPlugins, plugins.Plugins[plugins.SCTP]...)
 
 	sort.Slice(sortedTCPPlugins, func(i, j int) bool {
 		return sortedTCPPlugins[i].Priority() < sortedTCPPlugins[j].Priority()
@@ -68,6 +70,9 @@ func setupPlugins() {
 	})
 	sort.Slice(sortedTCPTLSPlugins, func(i, j int) bool {
 		return sortedTCPTLSPlugins[i].Priority() < sortedTCPTLSPlugins[j].Priority()
+	})
+	sort.Slice(sortedSCTPPlugins, func(i, j int) bool {
+		return sortedSCTPPlugins[i].Priority() < sortedSCTPPlugins[j].Priority()
 	})
 }
 
