@@ -214,7 +214,7 @@ func buildCER() []byte {
 	avps := []byte{}
 
 	// Origin-Host AVP (Code 264, Mandatory)
-	avps = append(avps, buildAVP(AVP_ORIGIN_HOST, true, []byte("fingerprintx.local\x00"))...)
+	avps = append(avps, buildAVP(AVP_ORIGIN_HOST, true, []byte("nerva.local\x00"))...)
 
 	// Origin-Realm AVP (Code 296, Mandatory)
 	avps = append(avps, buildAVP(AVP_ORIGIN_REALM, true, []byte("local\x00"))...)
@@ -229,7 +229,7 @@ func buildCER() []byte {
 	avps = append(avps, buildAVP(AVP_VENDOR_ID, true, encodeUnsigned32(0))...)
 
 	// Product-Name AVP (Code 269, Mandatory)
-	avps = append(avps, buildAVP(AVP_PRODUCT_NAME, true, []byte("fingerprintx\x00"))...)
+	avps = append(avps, buildAVP(AVP_PRODUCT_NAME, true, []byte("nerva\x00"))...)
 
 	// Update message length in header
 	totalLength := len(header) + len(avps)

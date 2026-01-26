@@ -116,7 +116,7 @@ func (p *KubernetesPlugin) Run(conn net.Conn, timeout time.Duration, target plug
 
 	// Set headers to mimic kubectl client
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "fingerprintx/1.0")
+	req.Header.Set("User-Agent", "nerva/1.0")
 
 	// If host is provided in target, use it for SNI
 	if target.Host != "" {
