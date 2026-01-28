@@ -244,7 +244,7 @@ func buildBoltHandshake() []byte {
 
 func buildHelloMessage() []byte {
 	userAgent := []byte("user_agent")
-	userAgentValue := []byte("fingerprintx/1.0")
+	userAgentValue := []byte("nerva/1.0")
 
 	// PackStream: B1=struct(1 field), 01=HELLO, A1=map(1 entry)
 	body := make([]byte, 0, 32)

@@ -177,7 +177,7 @@ func TestBuildCouchDBHTTPRequest(t *testing.T) {
 	// Verify request structure
 	assert.Contains(t, request, "GET / HTTP/1.1\r\n")
 	assert.Contains(t, request, "Host: localhost:5984\r\n")
-	assert.Contains(t, request, "User-Agent: fingerprintx/1.1.13\r\n")
+	assert.Contains(t, request, "User-Agent: nerva/1.0\r\n")
 	assert.Contains(t, request, "Accept: application/json\r\n")
 	assert.Contains(t, request, "\r\n\r\n") // Headers end
 }

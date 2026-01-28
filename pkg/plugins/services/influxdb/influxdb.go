@@ -113,7 +113,7 @@ func buildInfluxDBHTTPRequest(path, host string) string {
 	return fmt.Sprintf(
 		"GET %s HTTP/1.1\r\n"+
 			"Host: %s\r\n"+
-			"User-Agent: fingerprintx/1.1.13\r\n"+
+			"User-Agent: nerva/1.0\r\n"+
 			"Connection: close\r\n"+
 			"\r\n",
 		path, host)

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package diameter
+package diametersctp
 
 import (
 	"encoding/binary"
@@ -26,14 +26,29 @@ import (
 )
 
 /*
-Diameter Protocol Fingerprinting
+Diameter Protocol Fingerprinting over SCTP
 
 Diameter is the successor to RADIUS, used for Authentication, Authorization, and Accounting (AAA)
 in 3GPP networks (LTE, 5G) and other telecommunications systems.
 
+Transport Protocol:
+  SCTP (Stream Control Transmission Protocol) is the PREFERRED transport for Diameter in
+  production telecom deployments due to:
+    - Native message boundary preservation (no TCP stream reassembly)
+    - Multi-homing support for high availability
+    - Multi-streaming for parallel signaling flows
+    - Built-in heartbeat mechanism for faster failure detection
+
+  RFC 6733 Section 2.1 states: "SCTP is the preferred transport protocol for Diameter"
+
+Platform Requirements:
+  - Linux: Native SCTP support via kernel module (load with: modprobe sctp)
+  - macOS/Windows: SCTP not supported by default - will return ErrSCTPNotSupported
+  - Production deployments: Linux required for SCTP transport
+
 Detection Strategy:
   PHASE 1 - DETECTION:
-    - Connect to TCP port 3868 (default Diameter port)
+    - Connect to SCTP port 3868 (default Diameter port)
     - Send Capabilities-Exchange-Request (CER) message
     - Receive Capabilities-Exchange-Answer (CEA) message
     - Validate CEA structure (Diameter header, Result-Code AVP)
@@ -85,7 +100,7 @@ CPE Format:
 */
 
 const (
-	DIAMETER           = "diameter"
+	DIAMETER_SCTP      = "diameter-sctp"
 	DIAMETER_PORT      = 3868
 	DIAMETER_VERSION   = 1
 	CER_COMMAND_CODE   = 257
@@ -98,17 +113,18 @@ const (
 	AVP_VENDOR_ID      = 266
 	AVP_PRODUCT_NAME   = 269
 	AVP_FIRMWARE_REV   = 267
+	AVP_ERROR_MESSAGE  = 281
 	M_BIT              = 0x40 // Mandatory bit
 )
 
-type DIAMETERPlugin struct{}
+type DIAMETERSCTPPlugin struct{}
 
 func init() {
-	plugins.RegisterPlugin(&DIAMETERPlugin{})
+	plugins.RegisterPlugin(&DIAMETERSCTPPlugin{})
 }
 
 // Run implements the main fingerprinting logic
-func (p *DIAMETERPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.Target) (*plugins.Service, error) {
+func (p *DIAMETERSCTPPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.Target) (*plugins.Service, error) {
 	// Phase 1: Detection - send CER and receive CEA
 	cea, err := detectDiameter(conn, timeout)
 	if err != nil {
@@ -116,15 +132,27 @@ func (p *DIAMETERPlugin) Run(conn net.Conn, timeout time.Duration, target plugin
 	}
 
 	// Phase 2: Enrichment - extract version and metadata
-	productName, firmwareRev, err := enrichDiameter(cea)
+	productName, firmwareRev, originHost, originRealm, errorMessage, err := enrichDiameter(cea)
 	if err != nil {
 		// Detection succeeded but enrichment failed - still return service
-		metadata := ServiceDiameter{}
-		return plugins.CreateServiceFrom(target, metadata, false, "", plugins.TCP), nil
+		metadata := ServiceDiameterSCTP{
+			OriginHost:   originHost,
+			OriginRealm:  originRealm,
+			ErrorMessage: errorMessage,
+		}
+		return plugins.CreateServiceFrom(target, metadata, false, "", plugins.SCTP), nil
 	}
 
-	// Identify vendor from Product-Name
-	vendor, product := identifyVendor(productName)
+	// Identify vendor from Product-Name or Origin-Host fallback
+	var vendor, product string
+	if productName != "" {
+		vendor, product = identifyVendor(productName)
+	} else if originHost != "" {
+		// Fallback to Origin-Host fingerprinting for error CEAs
+		vendor, product = identifyVendorFromOriginHost(originHost)
+	} else {
+		vendor, product = "*", "diameter"
+	}
 
 	// Decode version from Firmware-Revision
 	var version string
@@ -136,34 +164,37 @@ func (p *DIAMETERPlugin) Run(conn net.Conn, timeout time.Duration, target plugin
 	cpe := buildCPE(vendor, product, version)
 
 	// Create service with metadata
-	metadata := ServiceDiameter{
-		CPEs:    []string{cpe},
-		Version: version,
-		Vendor:  vendor,
-		Product: product,
+	metadata := ServiceDiameterSCTP{
+		CPEs:         []string{cpe},
+		Version:      version,
+		Vendor:       vendor,
+		Product:      product,
+		OriginHost:   originHost,
+		OriginRealm:  originRealm,
+		ErrorMessage: errorMessage,
 	}
 
-	return plugins.CreateServiceFrom(target, metadata, false, version, plugins.TCP), nil
+	return plugins.CreateServiceFrom(target, metadata, false, version, plugins.SCTP), nil
 }
 
 // PortPriority returns true if the port is 3868 (default Diameter port)
-func (p *DIAMETERPlugin) PortPriority(port uint16) bool {
+func (p *DIAMETERSCTPPlugin) PortPriority(port uint16) bool {
 	return port == DIAMETER_PORT
 }
 
 // Name returns the protocol name
-func (p *DIAMETERPlugin) Name() string {
-	return DIAMETER
+func (p *DIAMETERSCTPPlugin) Name() string {
+	return DIAMETER_SCTP
 }
 
-// Type returns the protocol type (TCP)
-func (p *DIAMETERPlugin) Type() plugins.Protocol {
-	return plugins.TCP
+// Type returns the protocol type (SCTP)
+func (p *DIAMETERSCTPPlugin) Type() plugins.Protocol {
+	return plugins.SCTP
 }
 
 // Priority returns the plugin execution priority
 // Diameter uses port 3868 exclusively, run at medium priority (after common services)
-func (p *DIAMETERPlugin) Priority() int {
+func (p *DIAMETERSCTPPlugin) Priority() int {
 	return 60
 }
 
@@ -212,10 +243,6 @@ func buildCER() []byte {
 
 	// Build AVPs
 	avps := []byte{}
-
-	// RFC 6733: Diameter AVP strings use length-prefix encoding (AVP Length field), NOT null termination.
-	// Including null terminators causes compliant implementations (FreeDiameter, etc.) to reject messages
-	// with DIAMETER_INVALID_AVP_VALUE.
 
 	// Origin-Host AVP (Code 264, Mandatory)
 	avps = append(avps, buildAVP(AVP_ORIGIN_HOST, true, []byte("nerva.local"))...)
@@ -289,7 +316,7 @@ func validateCEA(response []byte) error {
 	// Minimum CEA size: Header (20) + minimal AVPs (~40)
 	if len(response) < 60 {
 		return &utils.InvalidResponseErrorInfo{
-			Service: DIAMETER,
+			Service: DIAMETER_SCTP,
 			Info:    "response too short for valid CEA",
 		}
 	}
@@ -297,7 +324,7 @@ func validateCEA(response []byte) error {
 	// Check version (byte 0)
 	if response[0] != DIAMETER_VERSION {
 		return &utils.InvalidResponseErrorInfo{
-			Service: DIAMETER,
+			Service: DIAMETER_SCTP,
 			Info:    fmt.Sprintf("invalid version: %d, expected 1", response[0]),
 		}
 	}
@@ -306,7 +333,7 @@ func validateCEA(response []byte) error {
 	msgLength := (uint32(response[1]) << 16) | (uint32(response[2]) << 8) | uint32(response[3])
 	if len(response) < int(msgLength) {
 		return &utils.InvalidResponseErrorInfo{
-			Service: DIAMETER,
+			Service: DIAMETER_SCTP,
 			Info:    fmt.Sprintf("incomplete response: got %d bytes, expected %d", len(response), msgLength),
 		}
 	}
@@ -316,7 +343,7 @@ func validateCEA(response []byte) error {
 	commandCode := (uint32(response[5]) << 16) | (uint32(response[6]) << 8) | uint32(response[7])
 	if commandCode != CER_COMMAND_CODE {
 		return &utils.InvalidResponseErrorInfo{
-			Service: DIAMETER,
+			Service: DIAMETER_SCTP,
 			Info:    fmt.Sprintf("invalid command code: %d, expected 257", commandCode),
 		}
 	}
@@ -324,7 +351,7 @@ func validateCEA(response []byte) error {
 	// Check R-bit is cleared (answer, not request)
 	if response[4]&R_BIT != 0 {
 		return &utils.InvalidResponseErrorInfo{
-			Service: DIAMETER,
+			Service: DIAMETER_SCTP,
 			Info:    "R-bit set in CEA (expected answer, not request)",
 		}
 	}
@@ -333,11 +360,15 @@ func validateCEA(response []byte) error {
 }
 
 // enrichDiameter extracts version and metadata from CEA
-func enrichDiameter(cea []byte) (string, uint32, error) {
+// Returns: productName, firmwareRev, originHost, originRealm, errorMessage, error
+func enrichDiameter(cea []byte) (string, uint32, string, string, string, error) {
 	// Parse AVPs starting after header (20 bytes)
 	offset := 20
 	var productName string
 	var firmwareRev uint32
+	var originHost string
+	var originRealm string
+	var errorMessage string
 
 	for offset < len(cea) {
 		// Need at least 8 bytes for AVP header
@@ -379,6 +410,27 @@ func enrichDiameter(cea []byte) (string, uint32, error) {
 			if len(data) >= 4 {
 				firmwareRev = binary.BigEndian.Uint32(data[0:4])
 			}
+
+		case AVP_ORIGIN_HOST:
+			// UTF8String (null-terminated)
+			originHost = string(data)
+			if idx := strings.IndexByte(originHost, 0); idx != -1 {
+				originHost = originHost[:idx]
+			}
+
+		case AVP_ORIGIN_REALM:
+			// UTF8String (null-terminated)
+			originRealm = string(data)
+			if idx := strings.IndexByte(originRealm, 0); idx != -1 {
+				originRealm = originRealm[:idx]
+			}
+
+		case AVP_ERROR_MESSAGE:
+			// UTF8String (null-terminated)
+			errorMessage = string(data)
+			if idx := strings.IndexByte(errorMessage, 0); idx != -1 {
+				errorMessage = errorMessage[:idx]
+			}
 		}
 
 		// Move to next AVP (account for padding to 32-bit boundary)
@@ -389,11 +441,13 @@ func enrichDiameter(cea []byte) (string, uint32, error) {
 		offset += int(paddedLength)
 	}
 
-	if productName == "" {
-		return "", 0, fmt.Errorf("Product-Name AVP not found in CEA")
+	// Error CEAs won't have Product-Name, but will have Origin-Host
+	// This is valid - we can fingerprint from Origin-Host
+	if productName == "" && originHost == "" {
+		return "", 0, "", "", "", fmt.Errorf("neither Product-Name nor Origin-Host AVP found in CEA")
 	}
 
-	return productName, firmwareRev, nil
+	return productName, firmwareRev, originHost, originRealm, errorMessage, nil
 }
 
 // decodeFirmwareRevision decodes FreeDiameter version from Firmware-Revision AVP
@@ -421,6 +475,26 @@ func identifyVendor(productName string) (vendor, product string) {
 	}
 }
 
+// identifyVendorFromOriginHost maps Origin-Host to vendor identifier for CPE
+// Used as fallback when Product-Name is not present (e.g., error CEAs)
+func identifyVendorFromOriginHost(originHost string) (vendor, product string) {
+	hostLower := strings.ToLower(originHost)
+	switch {
+	case strings.Contains(hostLower, "freediameter"):
+		return "freediameter", "freediameter"
+	case strings.Contains(hostLower, "open5gs"):
+		return "open5gs", "open5gs"
+	case strings.Contains(hostLower, "hss"):
+		return "3gpp", "hss"
+	case strings.Contains(hostLower, "oracle"):
+		return "oracle", "diameter"
+	case strings.Contains(hostLower, "ericsson"):
+		return "ericsson", "diameter"
+	default:
+		return "*", "diameter"
+	}
+}
+
 // buildCPE generates CPE 2.3 formatted string
 func buildCPE(vendor, product, version string) string {
 	if version == "" {
@@ -429,15 +503,18 @@ func buildCPE(vendor, product, version string) string {
 	return fmt.Sprintf("cpe:2.3:a:%s:%s:%s:*:*:*:*:*:*:*", vendor, product, version)
 }
 
-// ServiceDiameter contains metadata for Diameter services
-type ServiceDiameter struct {
-	CPEs    []string `json:"cpes,omitempty"`
-	Version string   `json:"version,omitempty"`
-	Vendor  string   `json:"vendor,omitempty"`
-	Product string   `json:"product,omitempty"`
+// ServiceDiameterSCTP contains metadata for Diameter services over SCTP transport
+type ServiceDiameterSCTP struct {
+	CPEs         []string `json:"cpes,omitempty"`
+	Version      string   `json:"version,omitempty"`
+	Vendor       string   `json:"vendor,omitempty"`
+	Product      string   `json:"product,omitempty"`
+	OriginHost   string   `json:"originHost,omitempty"`
+	OriginRealm  string   `json:"originRealm,omitempty"`
+	ErrorMessage string   `json:"errorMessage,omitempty"`
 }
 
 // Type implements the Metadata interface
-func (s ServiceDiameter) Type() string {
-	return DIAMETER
+func (s ServiceDiameterSCTP) Type() string {
+	return DIAMETER_SCTP
 }

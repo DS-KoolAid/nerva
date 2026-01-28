@@ -151,13 +151,13 @@ func init() {
 //     EXTNAM (External Name): Client identification
 //       - Length: 2 bytes
 //       - Codepoint: 2 bytes (0x115E)
-//       - Data: ASCII string "fingerprintx"
+//       - Data: ASCII string "nerva"
 //
 // Returns:
 //   []byte: Properly formatted EXCSAT message ready to send
 func buildEXCSAT() []byte {
-	// Client external name (identifies us as "fingerprintx")
-	extnam := []byte("fingerprintx")
+	// Client external name (identifies us as "nerva")
+	extnam := []byte("nerva")
 
 	// Calculate parameter length: length field (2) + codepoint (2) + data length
 	extnameParamLen := uint16(2 + 2 + len(extnam))

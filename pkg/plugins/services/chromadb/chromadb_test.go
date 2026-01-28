@@ -632,7 +632,7 @@ func TestBuildChromaDBHTTPRequest(t *testing.T) {
 			wantContains: []string{
 				"GET /api/v1/heartbeat HTTP/1.1\r\n",
 				"Host: localhost:8000\r\n",
-				"User-Agent: fingerprintx/1.1.13\r\n",
+				"User-Agent: nerva/1.0\r\n",
 				"Accept: application/json\r\n",
 				"Connection: close\r\n",
 				"\r\n",
@@ -646,7 +646,7 @@ func TestBuildChromaDBHTTPRequest(t *testing.T) {
 			wantContains: []string{
 				"GET /api/v1/version HTTP/1.1\r\n",
 				"Host: localhost:8000\r\n",
-				"User-Agent: fingerprintx/1.1.13\r\n",
+				"User-Agent: nerva/1.0\r\n",
 				"Accept: application/json\r\n",
 				"Connection: close\r\n",
 				"\r\n",
