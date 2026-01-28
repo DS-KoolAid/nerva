@@ -452,6 +452,8 @@ func TestEnrichDiameter(t *testing.T) {
 		buildCEA           func() []byte
 		expectedProduct    string
 		expectedFirmwareRev uint32
+		expectedOriginHost  string
+		expectedOriginRealm string
 		expectError        bool
 	}{
 		{
@@ -473,12 +475,15 @@ func TestEnrichDiameter(t *testing.T) {
 			expectError:        false,
 		},
 		{
-			name: "No product name",
+			name: "No product name, use Origin-Host fallback",
 			buildCEA: func() []byte {
-				// Build CEA without Product-Name AVP
+				// Build CEA without Product-Name AVP, but Origin-Host is present
 				return buildMockCEA("", 10500, true)
 			},
-			expectError: true,
+			expectedOriginHost:  "test.diameter.local",
+			expectedOriginRealm: "local",
+			expectedFirmwareRev: 10500,
+			expectError:        false,
 		},
 		{
 			name: "Null-terminated string",
@@ -494,7 +499,7 @@ func TestEnrichDiameter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cea := tt.buildCEA()
-			productName, firmwareRev, err := enrichDiameter(cea)
+			productName, firmwareRev, originHost, originRealm, errorMessage, err := enrichDiameter(cea)
 
 			if tt.expectError {
 				if err == nil {
@@ -509,6 +514,16 @@ func TestEnrichDiameter(t *testing.T) {
 				}
 				if firmwareRev != tt.expectedFirmwareRev {
 					t.Errorf("enrichDiameter() firmwareRev = %d, want %d", firmwareRev, tt.expectedFirmwareRev)
+				}
+				if tt.expectedOriginHost != "" && originHost != tt.expectedOriginHost {
+					t.Errorf("enrichDiameter() originHost = %s, want %s", originHost, tt.expectedOriginHost)
+				}
+				if tt.expectedOriginRealm != "" && originRealm != tt.expectedOriginRealm {
+					t.Errorf("enrichDiameter() originRealm = %s, want %s", originRealm, tt.expectedOriginRealm)
+				}
+				// errorMessage should be empty on success
+				if errorMessage != "" {
+					t.Errorf("enrichDiameter() errorMessage = %s, want empty on success", errorMessage)
 				}
 			}
 		})

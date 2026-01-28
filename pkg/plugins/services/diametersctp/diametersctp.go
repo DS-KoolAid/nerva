@@ -113,6 +113,7 @@ const (
 	AVP_VENDOR_ID      = 266
 	AVP_PRODUCT_NAME   = 269
 	AVP_FIRMWARE_REV   = 267
+	AVP_ERROR_MESSAGE  = 281
 	M_BIT              = 0x40 // Mandatory bit
 )
 
@@ -131,15 +132,27 @@ func (p *DIAMETERSCTPPlugin) Run(conn net.Conn, timeout time.Duration, target pl
 	}
 
 	// Phase 2: Enrichment - extract version and metadata
-	productName, firmwareRev, err := enrichDiameter(cea)
+	productName, firmwareRev, originHost, originRealm, errorMessage, err := enrichDiameter(cea)
 	if err != nil {
 		// Detection succeeded but enrichment failed - still return service
-		metadata := ServiceDiameterSCTP{}
+		metadata := ServiceDiameterSCTP{
+			OriginHost:   originHost,
+			OriginRealm:  originRealm,
+			ErrorMessage: errorMessage,
+		}
 		return plugins.CreateServiceFrom(target, metadata, false, "", plugins.SCTP), nil
 	}
 
-	// Identify vendor from Product-Name
-	vendor, product := identifyVendor(productName)
+	// Identify vendor from Product-Name or Origin-Host fallback
+	var vendor, product string
+	if productName != "" {
+		vendor, product = identifyVendor(productName)
+	} else if originHost != "" {
+		// Fallback to Origin-Host fingerprinting for error CEAs
+		vendor, product = identifyVendorFromOriginHost(originHost)
+	} else {
+		vendor, product = "*", "diameter"
+	}
 
 	// Decode version from Firmware-Revision
 	var version string
@@ -152,10 +165,13 @@ func (p *DIAMETERSCTPPlugin) Run(conn net.Conn, timeout time.Duration, target pl
 
 	// Create service with metadata
 	metadata := ServiceDiameterSCTP{
-		CPEs:    []string{cpe},
-		Version: version,
-		Vendor:  vendor,
-		Product: product,
+		CPEs:         []string{cpe},
+		Version:      version,
+		Vendor:       vendor,
+		Product:      product,
+		OriginHost:   originHost,
+		OriginRealm:  originRealm,
+		ErrorMessage: errorMessage,
 	}
 
 	return plugins.CreateServiceFrom(target, metadata, false, version, plugins.SCTP), nil
@@ -229,10 +245,10 @@ func buildCER() []byte {
 	avps := []byte{}
 
 	// Origin-Host AVP (Code 264, Mandatory)
-	avps = append(avps, buildAVP(AVP_ORIGIN_HOST, true, []byte("nerva.local\x00"))...)
+	avps = append(avps, buildAVP(AVP_ORIGIN_HOST, true, []byte("nerva.local"))...)
 
 	// Origin-Realm AVP (Code 296, Mandatory)
-	avps = append(avps, buildAVP(AVP_ORIGIN_REALM, true, []byte("local\x00"))...)
+	avps = append(avps, buildAVP(AVP_ORIGIN_REALM, true, []byte("local"))...)
 
 	// Host-IP-Address AVP (Code 257, Mandatory)
 	// Address format: AddressType (2 bytes) + Address
@@ -244,7 +260,7 @@ func buildCER() []byte {
 	avps = append(avps, buildAVP(AVP_VENDOR_ID, true, encodeUnsigned32(0))...)
 
 	// Product-Name AVP (Code 269, Mandatory)
-	avps = append(avps, buildAVP(AVP_PRODUCT_NAME, true, []byte("nerva\x00"))...)
+	avps = append(avps, buildAVP(AVP_PRODUCT_NAME, true, []byte("nerva"))...)
 
 	// Update message length in header
 	totalLength := len(header) + len(avps)
@@ -344,11 +360,15 @@ func validateCEA(response []byte) error {
 }
 
 // enrichDiameter extracts version and metadata from CEA
-func enrichDiameter(cea []byte) (string, uint32, error) {
+// Returns: productName, firmwareRev, originHost, originRealm, errorMessage, error
+func enrichDiameter(cea []byte) (string, uint32, string, string, string, error) {
 	// Parse AVPs starting after header (20 bytes)
 	offset := 20
 	var productName string
 	var firmwareRev uint32
+	var originHost string
+	var originRealm string
+	var errorMessage string
 
 	for offset < len(cea) {
 		// Need at least 8 bytes for AVP header
@@ -390,6 +410,27 @@ func enrichDiameter(cea []byte) (string, uint32, error) {
 			if len(data) >= 4 {
 				firmwareRev = binary.BigEndian.Uint32(data[0:4])
 			}
+
+		case AVP_ORIGIN_HOST:
+			// UTF8String (null-terminated)
+			originHost = string(data)
+			if idx := strings.IndexByte(originHost, 0); idx != -1 {
+				originHost = originHost[:idx]
+			}
+
+		case AVP_ORIGIN_REALM:
+			// UTF8String (null-terminated)
+			originRealm = string(data)
+			if idx := strings.IndexByte(originRealm, 0); idx != -1 {
+				originRealm = originRealm[:idx]
+			}
+
+		case AVP_ERROR_MESSAGE:
+			// UTF8String (null-terminated)
+			errorMessage = string(data)
+			if idx := strings.IndexByte(errorMessage, 0); idx != -1 {
+				errorMessage = errorMessage[:idx]
+			}
 		}
 
 		// Move to next AVP (account for padding to 32-bit boundary)
@@ -400,11 +441,13 @@ func enrichDiameter(cea []byte) (string, uint32, error) {
 		offset += int(paddedLength)
 	}
 
-	if productName == "" {
-		return "", 0, fmt.Errorf("Product-Name AVP not found in CEA")
+	// Error CEAs won't have Product-Name, but will have Origin-Host
+	// This is valid - we can fingerprint from Origin-Host
+	if productName == "" && originHost == "" {
+		return "", 0, "", "", "", fmt.Errorf("neither Product-Name nor Origin-Host AVP found in CEA")
 	}
 
-	return productName, firmwareRev, nil
+	return productName, firmwareRev, originHost, originRealm, errorMessage, nil
 }
 
 // decodeFirmwareRevision decodes FreeDiameter version from Firmware-Revision AVP
@@ -432,6 +475,26 @@ func identifyVendor(productName string) (vendor, product string) {
 	}
 }
 
+// identifyVendorFromOriginHost maps Origin-Host to vendor identifier for CPE
+// Used as fallback when Product-Name is not present (e.g., error CEAs)
+func identifyVendorFromOriginHost(originHost string) (vendor, product string) {
+	hostLower := strings.ToLower(originHost)
+	switch {
+	case strings.Contains(hostLower, "freediameter"):
+		return "freediameter", "freediameter"
+	case strings.Contains(hostLower, "open5gs"):
+		return "open5gs", "open5gs"
+	case strings.Contains(hostLower, "hss"):
+		return "3gpp", "hss"
+	case strings.Contains(hostLower, "oracle"):
+		return "oracle", "diameter"
+	case strings.Contains(hostLower, "ericsson"):
+		return "ericsson", "diameter"
+	default:
+		return "*", "diameter"
+	}
+}
+
 // buildCPE generates CPE 2.3 formatted string
 func buildCPE(vendor, product, version string) string {
 	if version == "" {
@@ -442,10 +505,13 @@ func buildCPE(vendor, product, version string) string {
 
 // ServiceDiameterSCTP contains metadata for Diameter services over SCTP transport
 type ServiceDiameterSCTP struct {
-	CPEs    []string `json:"cpes,omitempty"`
-	Version string   `json:"version,omitempty"`
-	Vendor  string   `json:"vendor,omitempty"`
-	Product string   `json:"product,omitempty"`
+	CPEs         []string `json:"cpes,omitempty"`
+	Version      string   `json:"version,omitempty"`
+	Vendor       string   `json:"vendor,omitempty"`
+	Product      string   `json:"product,omitempty"`
+	OriginHost   string   `json:"originHost,omitempty"`
+	OriginRealm  string   `json:"originRealm,omitempty"`
+	ErrorMessage string   `json:"errorMessage,omitempty"`
 }
 
 // Type implements the Metadata interface

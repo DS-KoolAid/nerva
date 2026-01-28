@@ -213,11 +213,15 @@ func buildCER() []byte {
 	// Build AVPs
 	avps := []byte{}
 
+	// RFC 6733: Diameter AVP strings use length-prefix encoding (AVP Length field), NOT null termination.
+	// Including null terminators causes compliant implementations (FreeDiameter, etc.) to reject messages
+	// with DIAMETER_INVALID_AVP_VALUE.
+
 	// Origin-Host AVP (Code 264, Mandatory)
-	avps = append(avps, buildAVP(AVP_ORIGIN_HOST, true, []byte("nerva.local\x00"))...)
+	avps = append(avps, buildAVP(AVP_ORIGIN_HOST, true, []byte("nerva.local"))...)
 
 	// Origin-Realm AVP (Code 296, Mandatory)
-	avps = append(avps, buildAVP(AVP_ORIGIN_REALM, true, []byte("local\x00"))...)
+	avps = append(avps, buildAVP(AVP_ORIGIN_REALM, true, []byte("local"))...)
 
 	// Host-IP-Address AVP (Code 257, Mandatory)
 	// Address format: AddressType (2 bytes) + Address
@@ -229,7 +233,7 @@ func buildCER() []byte {
 	avps = append(avps, buildAVP(AVP_VENDOR_ID, true, encodeUnsigned32(0))...)
 
 	// Product-Name AVP (Code 269, Mandatory)
-	avps = append(avps, buildAVP(AVP_PRODUCT_NAME, true, []byte("nerva\x00"))...)
+	avps = append(avps, buildAVP(AVP_PRODUCT_NAME, true, []byte("nerva"))...)
 
 	// Update message length in header
 	totalLength := len(header) + len(avps)
