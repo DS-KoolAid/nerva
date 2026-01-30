@@ -1,5 +1,5 @@
 # Makefile for nerva - Service fingerprinting utility
-.PHONY: all build test test-unit test-integration clean help
+.PHONY: all build test test-unit test-integration clean help lint fmt vet install test-coverage
 .DEFAULT_GOAL := help
 .DELETE_ON_ERROR:
 
