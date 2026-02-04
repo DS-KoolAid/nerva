@@ -160,8 +160,42 @@ func parseServerProperties(data []byte) (product, version, platform string) {
 			value = string(data[pos : pos+valueLen])
 			pos += valueLen
 
+		case 'F': // Field table (nested)
+			if pos+4 > end {
+				return product, version, platform
+			}
+			// Skip nested table: 4-byte length + content
+			nestedLen := binary.BigEndian.Uint32(data[pos : pos+4])
+			pos += 4 + int(nestedLen)
+			if pos > end {
+				return product, version, platform
+			}
+			continue // Skip to next field (no value to extract)
+
+		case 't': // Boolean
+			if pos+1 > end {
+				return product, version, platform
+			}
+			pos++ // Skip 1 byte
+			continue // Skip to next field (no value to extract)
+
+		case 'I': // Signed 32-bit integer
+			if pos+4 > end {
+				return product, version, platform
+			}
+			pos += 4 // Skip 4 bytes
+			continue // Skip to next field (no value to extract)
+
+		case 'l': // Signed 64-bit integer
+			if pos+8 > end {
+				return product, version, platform
+			}
+			pos += 8 // Skip 8 bytes
+			continue // Skip to next field (no value to extract)
+
 		default:
-			// Skip unknown types
+			// Skip unknown types by returning early
+			// This preserves backward compatibility if new types are added
 			return product, version, platform
 		}
 
@@ -213,20 +247,16 @@ func generateCPE(product, version string) []string {
 		return nil
 	}
 
-	// Normalize product name for CPE
-	var cpeProduct string
-	switch product {
-	case "RabbitMQ":
-		cpeProduct = "rabbitmq"
-	default:
+	// Only generate CPE for RabbitMQ
+	if product != "RabbitMQ" {
 		return nil
 	}
 
 	if version == "" {
-		return []string{fmt.Sprintf("%s:%s:*:*:*:*:*:*:*:*", RabbitMQCPEMatch, cpeProduct)}
+		return []string{fmt.Sprintf("%s:*:*:*:*:*:*:*:*", RabbitMQCPEMatch)}
 	}
 
-	return []string{fmt.Sprintf("%s:%s:%s:*:*:*:*:*:*:*", RabbitMQCPEMatch, cpeProduct, version)}
+	return []string{fmt.Sprintf("%s:%s:*:*:*:*:*:*:*", RabbitMQCPEMatch, version)}
 }
 
 // AMQPPlugin implements TCP AMQP detection

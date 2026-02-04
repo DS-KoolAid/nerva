@@ -201,3 +201,132 @@ func TestTooShortResponse(t *testing.T) {
 		t.Error("Truncated response should not be valid")
 	}
 }
+
+// TestServerPropertyParsingWithNestedFieldTable verifies extraction of server properties
+// when the field table contains nested field tables and other complex types before
+// the product/version/platform fields (as RabbitMQ does with capabilities field)
+func TestServerPropertyParsingWithNestedFieldTable(t *testing.T) {
+	// Real-world scenario: RabbitMQ sends capabilities (nested field table) first,
+	// then product/version/platform. This test uses a simpler nested table to verify
+	// the parser can skip over 'F' type fields.
+	//
+	// Field structure:
+	// 1. capabilities (nested field table 'F'): contains one boolean
+	// 2. product: RabbitMQ (long string 'S')
+	// 3. version: 3.13.7 (long string 'S')
+	// 4. platform: Erlang/OTP 26.2.5.16 (long string 'S')
+
+	// Build the properties byte array step by step
+	var properties []byte
+
+	// We'll calculate total length at the end, start with placeholder
+	properties = append(properties, 0x00, 0x00, 0x00, 0x00) // Total table length (will update)
+
+	// Field 1: capabilities (nested field table with one boolean field)
+	properties = append(properties, 0x0C) // name length = 12
+	properties = append(properties, []byte("capabilities")...) // name
+	properties = append(properties, 'F') // Type: field table
+
+	// Nested table content: one boolean field
+	// test_field: true (1 + 10 + 1 + 1 = 13 bytes)
+	nestedContent := []byte{
+		0x0A, 't', 'e', 's', 't', '_', 'f', 'i', 'e', 'l', 'd', // name length (10) + name
+		't',  // Type: boolean
+		0x01, // value: true
+	}
+	// Add nested table length (4 bytes, big-endian)
+	nestedLen := uint32(len(nestedContent))
+	properties = append(properties,
+		byte(nestedLen>>24),
+		byte(nestedLen>>16),
+		byte(nestedLen>>8),
+		byte(nestedLen))
+	properties = append(properties, nestedContent...) // nested content
+
+	// Field 2: product
+	properties = append(properties, 0x07) // name length = 7
+	properties = append(properties, []byte("product")...) // name
+	properties = append(properties, 'S') // Type: long string
+	productValue := []byte("RabbitMQ")
+	productLen := uint32(len(productValue))
+	properties = append(properties,
+		byte(productLen>>24),
+		byte(productLen>>16),
+		byte(productLen>>8),
+		byte(productLen))
+	properties = append(properties, productValue...) // value
+
+	// Field 3: version
+	properties = append(properties, 0x07) // name length = 7
+	properties = append(properties, []byte("version")...) // name
+	properties = append(properties, 'S') // Type: long string
+	versionValue := []byte("3.13.7")
+	versionLen := uint32(len(versionValue))
+	properties = append(properties,
+		byte(versionLen>>24),
+		byte(versionLen>>16),
+		byte(versionLen>>8),
+		byte(versionLen))
+	properties = append(properties, versionValue...) // value
+
+	// Field 4: platform
+	properties = append(properties, 0x08) // name length = 8
+	properties = append(properties, []byte("platform")...) // name
+	properties = append(properties, 'S') // Type: long string
+	platformValue := []byte("Erlang/OTP 26.2.5.16")
+	platformLen := uint32(len(platformValue))
+	properties = append(properties,
+		byte(platformLen>>24),
+		byte(platformLen>>16),
+		byte(platformLen>>8),
+		byte(platformLen))
+	properties = append(properties, platformValue...) // value
+
+	// Update total table length (everything after the first 4 bytes)
+	totalLen := uint32(len(properties) - 4)
+	properties[0] = byte(totalLen >> 24)
+	properties[1] = byte(totalLen >> 16)
+	properties[2] = byte(totalLen >> 8)
+	properties[3] = byte(totalLen)
+
+	product, version, platform := parseServerProperties(properties)
+
+	// With the fix, these should now pass
+	if product != "RabbitMQ" {
+		t.Errorf("Expected product 'RabbitMQ', got '%s'", product)
+	}
+	if version != "3.13.7" {
+		t.Errorf("Expected version '3.13.7', got '%s'", version)
+	}
+	if platform != "Erlang/OTP 26.2.5.16" {
+		t.Errorf("Expected platform 'Erlang/OTP 26.2.5.16', got '%s'", platform)
+	}
+}
+
+// TestGenerateCPEWithVersion verifies CPE generation with version does not duplicate product name
+func TestGenerateCPEWithVersion(t *testing.T) {
+	cpes := generateCPE("RabbitMQ", "3.13.7")
+
+	if len(cpes) != 1 {
+		t.Fatalf("Expected 1 CPE, got %d", len(cpes))
+	}
+
+	expected := "cpe:2.3:a:pivotal_software:rabbitmq:3.13.7:*:*:*:*:*:*:*"
+	if cpes[0] != expected {
+		t.Errorf("Expected CPE '%s', got '%s'", expected, cpes[0])
+	}
+}
+
+// TestGenerateCPEWithoutVersion verifies CPE generation without version does not duplicate product name
+func TestGenerateCPEWithoutVersion(t *testing.T) {
+	cpes := generateCPE("RabbitMQ", "")
+
+	if len(cpes) != 1 {
+		t.Fatalf("Expected 1 CPE, got %d", len(cpes))
+	}
+
+	expected := "cpe:2.3:a:pivotal_software:rabbitmq:*:*:*:*:*:*:*:*"
+	if cpes[0] != expected {
+		t.Errorf("Expected CPE '%s', got '%s'", expected, cpes[0])
+	}
+}
