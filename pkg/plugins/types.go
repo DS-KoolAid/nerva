@@ -76,6 +76,7 @@ const (
 	ProtoNTP        = "ntp"
 	ProtoOracle     = "oracle"
 	ProtoOpenVPN    = "openvpn"
+	ProtoOPCUA      = "opcua"
 	ProtoPinecone   = "pinecone"
 	ProtoPOP3       = "pop3"
 	ProtoPOP3S      = "pop3s"
@@ -214,6 +215,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoOracle:
 		var p ServiceOracle
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoOPCUA:
+		var p ServiceOPCUA
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoPinecone:
@@ -630,6 +635,15 @@ func (e ServicePinecone) Type() string { return ProtoPinecone }
 type ServiceOpenVPN struct{}
 
 func (e ServiceOpenVPN) Type() string { return ProtoOpenVPN }
+
+type ServiceOPCUA struct {
+	ApplicationName string   `json:"applicationName,omitempty"` // Server application name
+	ProductURI      string   `json:"productUri,omitempty"`      // Product URI from server
+	SecurityModes   []string `json:"securityModes,omitempty"`   // None, Sign, SignAndEncrypt
+	CPEs            []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceOPCUA) Type() string { return ProtoOPCUA }
 
 type ServiceMQTT struct{}
 
