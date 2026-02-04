@@ -37,6 +37,7 @@ const (
 const TypeService string = "service"
 
 const (
+	ProtoAMQP       = "amqp"
 	ProtoDNS        = "dns"
 	ProtoDHCP       = "dhcp"
 	ProtoDiameter   = "diameter"
@@ -309,6 +310,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoSNPP:
 		var p ServiceSNPP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoAMQP:
+		var p ServiceAMQP
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	default:
@@ -767,3 +772,12 @@ type ServiceM3UA struct {
 }
 
 func (e ServiceM3UA) Type() string { return ProtoM3UA }
+
+type ServiceAMQP struct {
+	Product  string   `json:"product,omitempty"`  // e.g., "RabbitMQ"
+	Version  string   `json:"version,omitempty"`  // e.g., "3.12.0"
+	Platform string   `json:"platform,omitempty"` // e.g., "Erlang/OTP 26.0"
+	CPEs     []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceAMQP) Type() string { return ProtoAMQP }
