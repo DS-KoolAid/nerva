@@ -45,13 +45,13 @@ var versionPatterns = []struct {
 	product string
 	pattern *regexp.Regexp
 }{
-	{"Asterisk", regexp.MustCompile(`Asterisk\s+PBX\s+([0-9.]+)`)},
-	{"Kamailio", regexp.MustCompile(`kamailio\s+\(([0-9.]+)`)},
-	{"OpenSIPS", regexp.MustCompile(`OpenSIPS\s+\(([0-9.]+)`)},
-	{"FreeSWITCH", regexp.MustCompile(`FreeSWITCH-mod_sofia/([0-9.]+)`)},
-	{"FreePBX", regexp.MustCompile(`FPBX-([0-9.]+)`)},
-	{"Cisco", regexp.MustCompile(`Cisco-SIPGateway/IOS-([0-9.]+)`)},
-	{"3CX", regexp.MustCompile(`3CX Phone System ([0-9.]+)`)},
+	{"Asterisk", regexp.MustCompile(`Asterisk\s+PBX\s+(\d+\.\d+\.\d+)`)},
+	{"Kamailio", regexp.MustCompile(`Kamailio/(\d+\.\d+\.\d+)`)},
+	{"OpenSIPS", regexp.MustCompile(`OpenSIPS/(\d+\.\d+\.\d+)`)},
+	{"FreeSWITCH", regexp.MustCompile(`FreeSWITCH[^\d]*(\d+\.\d+\.\d+)`)},
+	{"FreePBX", regexp.MustCompile(`FPBX[^\d]*(\d+\.\d+\.\d+)`)},
+	{"Cisco", regexp.MustCompile(`Cisco[^\d]*(\d+\.\d+)`)},
+	{"3CX", regexp.MustCompile(`3CXPhoneSystem\s+(\d+\.\d+)`)},
 }
 
 // Server identification patterns (no version required, used as fallback)
