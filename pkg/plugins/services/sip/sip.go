@@ -15,18 +15,29 @@
 package sip
 
 import (
+	"bytes"
+	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/praetorian-inc/nerva/pkg/plugins"
+	utils "github.com/praetorian-inc/nerva/pkg/plugins/pluginutils"
 )
 
 const (
-	SIP            = "sip"
-	SIPS           = "sips"
-	DefaultSIPPort = 5060
+	SIP             = "sip"
+	SIPS            = "sips"
+	DefaultSIPPort  = 5060
 	DefaultSIPSPort = 5061
 )
+
+type SIPData struct {
+	Banner         string
+	Server         string
+	AllowedMethods []string
+	StatusCode     int
+}
 
 type UDPPlugin struct{}
 type TCPPlugin struct{}
@@ -38,8 +49,147 @@ func init() {
 	plugins.RegisterPlugin(&TLSPlugin{})
 }
 
+// buildOPTIONSRequest creates an RFC 3261 compliant SIP OPTIONS request
+func buildOPTIONSRequest(transport string) []byte {
+	request := fmt.Sprintf(
+		"OPTIONS sip:100@127.0.0.1 SIP/2.0\r\n"+
+			"Via: SIP/2.0/%s 127.0.0.1:5060;branch=z9hG4bK776asdhds\r\n"+
+			"Max-Forwards: 70\r\n"+
+			"To: <sip:100@127.0.0.1>\r\n"+
+			"From: <sip:scanner@127.0.0.1>;tag=1928301774\r\n"+
+			"Call-ID: a84b4c76e66710@127.0.0.1\r\n"+
+			"CSeq: 63104 OPTIONS\r\n"+
+			"Contact: <sip:scanner@127.0.0.1>\r\n"+
+			"Accept: application/sdp\r\n"+
+			"Content-Length: 0\r\n\r\n",
+		strings.ToUpper(transport))
+	return []byte(request)
+}
+
+// validateSIPResponse checks if response is a valid SIP response
+func validateSIPResponse(response []byte) bool {
+	if len(response) < 12 {
+		return false
+	}
+
+	// Check for "SIP/2.0 " prefix
+	if !bytes.HasPrefix(response, []byte("SIP/2.0 ")) {
+		return false
+	}
+
+	// Extract status code (3 digits after "SIP/2.0 ")
+	if len(response) < 12 {
+		return false
+	}
+	statusCode := response[8:11]
+
+	// Verify it's a 3-digit number in valid range (100-699)
+	for i := 0; i < 3; i++ {
+		if statusCode[i] < '0' || statusCode[i] > '9' {
+			return false
+		}
+	}
+
+	// Check status code range
+	code := (int(statusCode[0])-'0')*100 + (int(statusCode[1])-'0')*10 + (int(statusCode[2]) - '0')
+	return code >= 100 && code < 700
+}
+
+// extractHeader extracts a header value from SIP response (case-insensitive)
+func extractHeader(response []byte, headerName string) string {
+	lines := bytes.Split(response, []byte("\r\n"))
+	headerNameLower := strings.ToLower(headerName)
+
+	for _, line := range lines {
+		if len(line) == 0 {
+			continue
+		}
+
+		// Check for header name (case-insensitive)
+		colonIdx := bytes.IndexByte(line, ':')
+		if colonIdx == -1 {
+			continue
+		}
+
+		lineHeader := strings.ToLower(string(line[:colonIdx]))
+		if strings.TrimSpace(lineHeader) == headerNameLower {
+			value := string(line[colonIdx+1:])
+			return strings.TrimSpace(value)
+		}
+	}
+
+	return ""
+}
+
+// parseAllowHeader parses the Allow header into method list
+func parseAllowHeader(response []byte) []string {
+	allowHeader := extractHeader(response, "Allow")
+	if allowHeader == "" {
+		return nil
+	}
+
+	methods := strings.Split(allowHeader, ",")
+	result := make([]string, 0, len(methods))
+	for _, method := range methods {
+		method = strings.TrimSpace(method)
+		if method != "" {
+			result = append(result, method)
+		}
+	}
+
+	return result
+}
+
+// DetectSIP performs SIP detection using OPTIONS request
+func DetectSIP(conn net.Conn, transport string, timeout time.Duration) (*SIPData, error) {
+	request := buildOPTIONSRequest(transport)
+
+	response, err := utils.SendRecv(conn, request, timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(response) == 0 {
+		return nil, nil
+	}
+
+	// Validate SIP response
+	if !validateSIPResponse(response) {
+		return nil, nil
+	}
+
+	// Extract status code
+	statusCode := (int(response[8])-'0')*100 + (int(response[9])-'0')*10 + (int(response[10]) - '0')
+
+	// Extract headers
+	server := extractHeader(response, "Server")
+	allowedMethods := parseAllowHeader(response)
+
+	return &SIPData{
+		Banner:         string(response),
+		Server:         server,
+		AllowedMethods: allowedMethods,
+		StatusCode:     statusCode,
+	}, nil
+}
+
 func (p *UDPPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.Target) (*plugins.Service, error) {
-	return nil, nil
+	data, err := DetectSIP(conn, "UDP", timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	if data == nil {
+		return nil, nil
+	}
+
+	payload := plugins.ServiceSIP{
+		Banner:         data.Banner,
+		Server:         data.Server,
+		AllowedMethods: data.AllowedMethods,
+	}
+
+	return plugins.CreateServiceFrom(target, payload, false, "", plugins.UDP), nil
 }
 
 func (p *UDPPlugin) PortPriority(port uint16) bool {
@@ -59,7 +209,22 @@ func (p *UDPPlugin) Priority() int {
 }
 
 func (p *TCPPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.Target) (*plugins.Service, error) {
-	return nil, nil
+	data, err := DetectSIP(conn, "TCP", timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	if data == nil {
+		return nil, nil
+	}
+
+	payload := plugins.ServiceSIP{
+		Banner:         data.Banner,
+		Server:         data.Server,
+		AllowedMethods: data.AllowedMethods,
+	}
+
+	return plugins.CreateServiceFrom(target, payload, false, "", plugins.TCP), nil
 }
 
 func (p *TCPPlugin) PortPriority(port uint16) bool {
@@ -79,7 +244,22 @@ func (p *TCPPlugin) Priority() int {
 }
 
 func (p *TLSPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.Target) (*plugins.Service, error) {
-	return nil, nil
+	data, err := DetectSIP(conn, "TLS", timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	if data == nil {
+		return nil, nil
+	}
+
+	payload := plugins.ServiceSIPS{
+		Banner:         data.Banner,
+		Server:         data.Server,
+		AllowedMethods: data.AllowedMethods,
+	}
+
+	return plugins.CreateServiceFrom(target, payload, true, "", plugins.TCPTLS), nil
 }
 
 func (p *TLSPlugin) PortPriority(port uint16) bool {
