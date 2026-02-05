@@ -50,6 +50,7 @@ const (
 	ProtoHTTP          = "http"
 	ProtoHTTPS      = "https"
 	ProtoHTTP2      = "http2"
+	ProtoH323       = "h323"
 	ProtoIMAP       = "imap"
 	ProtoIMAPS      = "imaps"
 	ProtoInfluxDB   = "influxdb"
@@ -143,6 +144,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoFTP:
 		var p ServiceFTP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoH323:
+		var p ServiceH323
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoPostgreSQL:
@@ -379,6 +384,16 @@ type ServiceHTTPS struct {
 }
 
 func (e ServiceHTTPS) Type() string { return ProtoHTTPS }
+
+type ServiceH323 struct {
+	VendorID     string   `json:"vendorID,omitempty"`
+	ProductName  string   `json:"productName,omitempty"`
+	Version      string   `json:"version,omitempty"`
+	TerminalType string   `json:"terminalType,omitempty"`
+	CPEs         []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceH323) Type() string { return ProtoH323 }
 
 type ServiceRDP struct {
 	OSFingerprint       string `json:"fingerprint,omitempty"` // e.g. Windows Server 2016 or 2019
