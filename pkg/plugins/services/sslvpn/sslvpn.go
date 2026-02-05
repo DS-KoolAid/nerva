@@ -78,7 +78,7 @@ CPE Format:
 package sslvpn
 
 import (
-	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -327,8 +327,16 @@ func buildGlobalProtectCPE(version string) string {
 	return fmt.Sprintf("cpe:2.3:o:paloaltonetworks:pan-os:%s:*:*:*:*:*:*:*", version)
 }
 
+// tlsConfig for SSL VPN connections - needs legacy renegotiation support
+var tlsConfig = &tls.Config{
+	InsecureSkipVerify: true, //nolint:gosec
+	MinVersion:         tls.VersionTLS10,
+	Renegotiation:      tls.RenegotiateFreelyAsClient,
+}
+
 // makeHTTPRequest performs an HTTPS request to the specified path
-func makeHTTPRequest(conn net.Conn, path string, host string, timeout time.Duration) (*http.Response, []byte, error) {
+// It dials a fresh TLS connection for each request to avoid connection state issues
+func makeHTTPRequest(addr string, path string, host string, timeout time.Duration) (*http.Response, []byte, error) {
 	url := fmt.Sprintf("https://%s%s", host, path)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -339,19 +347,22 @@ func makeHTTPRequest(conn net.Conn, path string, host string, timeout time.Durat
 	if host != "" {
 		req.Host = host
 	}
+	req.Header.Set("User-Agent", userAgent)
+
+	// Create a custom transport that dials fresh TLS connections
+	transport := &http.Transport{
+		TLSClientConfig: tlsConfig,
+		// Disable connection pooling to ensure fresh connections
+		DisableKeepAlives: true,
+	}
 
 	client := http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return conn, nil
-			},
-		},
+		Timeout:   timeout,
+		Transport: transport,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
-	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -368,14 +379,19 @@ func makeHTTPRequest(conn net.Conn, path string, host string, timeout time.Durat
 }
 
 func (p *SSLVPNPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.Target) (*plugins.Service, error) {
-	host := conn.RemoteAddr().String()
+	// Close the passed connection - we'll dial our own for HTTP requests
+	conn.Close()
+
+	// Determine the target address for HTTP requests
+	addr := target.Address.String()
+	host := addr
 	if target.Host != "" {
 		host = fmt.Sprintf("%s:%d", target.Host, target.Address.Port())
 	}
 
 	// Try AnyConnect detection paths first
 	for _, path := range anyConnectPaths {
-		resp, body, err := makeHTTPRequest(conn, path, host, timeout)
+		resp, body, err := makeHTTPRequest(addr, path, host, timeout)
 		if err != nil {
 			continue
 		}
@@ -396,7 +412,7 @@ func (p *SSLVPNPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.
 
 	// Try GlobalProtect detection paths
 	for _, path := range globalProtectPaths {
-		resp, body, err := makeHTTPRequest(conn, path, host, timeout)
+		resp, body, err := makeHTTPRequest(addr, path, host, timeout)
 		if err != nil {
 			continue
 		}
@@ -430,7 +446,8 @@ func (p *SSLVPNPlugin) Type() plugins.Protocol {
 	return plugins.TCPTLS
 }
 
-// Priority returns a higher priority than generic HTTPS (1) to detect VPN first
+// Priority returns a lower value than generic HTTPS (1) to detect VPN first
+// Lower priority values run earlier in the plugin chain
 func (p *SSLVPNPlugin) Priority() int {
-	return 200
+	return 0
 }
