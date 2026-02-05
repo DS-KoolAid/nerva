@@ -577,8 +577,9 @@ func TestPluginInterface(t *testing.T) {
 
 	t.Run("Priority", func(t *testing.T) {
 		priority := p.Priority()
-		if priority <= 1 {
-			t.Errorf("Priority() = %d, expected > 1 (higher than HTTPS)", priority)
+		// Priority should be <= 1 to run before generic HTTPS (priority 1)
+		if priority > 1 {
+			t.Errorf("Priority() = %d, expected <= 1 (run before HTTPS)", priority)
 		}
 	})
 }
