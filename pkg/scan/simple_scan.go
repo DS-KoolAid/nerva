@@ -49,6 +49,7 @@ func init() {
 	tlsConfig.InsecureSkipVerify = true //nolint:gosec
 	tlsConfig.CipherSuites = cipherSuites
 	tlsConfig.MinVersion = tls.VersionTLS10
+	tlsConfig.Renegotiation = tls.RenegotiateFreelyAsClient
 }
 
 func setupPlugins() {
