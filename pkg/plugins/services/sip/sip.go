@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"regexp"
 	"strings"
 	"time"
 
@@ -39,6 +40,34 @@ type SIPData struct {
 	StatusCode     int
 }
 
+// Version extraction patterns for SIP servers
+var versionPatterns = []struct {
+	product string
+	pattern *regexp.Regexp
+}{
+	{"Asterisk", regexp.MustCompile(`Asterisk\s+PBX\s+([0-9.]+)`)},
+	{"Kamailio", regexp.MustCompile(`kamailio\s+\(([0-9.]+)`)},
+	{"OpenSIPS", regexp.MustCompile(`OpenSIPS\s+\(([0-9.]+)`)},
+	{"FreeSWITCH", regexp.MustCompile(`FreeSWITCH-mod_sofia/([0-9.]+)`)},
+	{"FreePBX", regexp.MustCompile(`FPBX-([0-9.]+)`)},
+	{"Cisco", regexp.MustCompile(`Cisco-SIPGateway/IOS-([0-9.]+)`)},
+	{"3CX", regexp.MustCompile(`3CX Phone System ([0-9.]+)`)},
+}
+
+// Server identification patterns (no version required, used as fallback)
+var serverPatterns = []struct {
+	product string
+	pattern *regexp.Regexp
+}{
+	{"Asterisk", regexp.MustCompile(`(?i)Asterisk`)},
+	{"Kamailio", regexp.MustCompile(`(?i)kamailio`)},
+	{"OpenSIPS", regexp.MustCompile(`(?i)OpenSIPS`)},
+	{"FreeSWITCH", regexp.MustCompile(`(?i)FreeSWITCH`)},
+	{"FreePBX", regexp.MustCompile(`(?i)FreePBX|FPBX`)},
+	{"Cisco", regexp.MustCompile(`(?i)Cisco`)},
+	{"3CX", regexp.MustCompile(`(?i)3CX`)},
+}
+
 type UDPPlugin struct{}
 type TCPPlugin struct{}
 type TLSPlugin struct{}
@@ -47,6 +76,30 @@ func init() {
 	plugins.RegisterPlugin(&UDPPlugin{})
 	plugins.RegisterPlugin(&TCPPlugin{})
 	plugins.RegisterPlugin(&TLSPlugin{})
+}
+
+// extractSIPVersion extracts product name and version from Server header
+func extractSIPVersion(serverHeader string) (product, version string) {
+	if serverHeader == "" {
+		return "", ""
+	}
+
+	// Phase 1: Try to extract product with version
+	for _, vp := range versionPatterns {
+		matches := vp.pattern.FindStringSubmatch(serverHeader)
+		if len(matches) >= 2 {
+			return vp.product, matches[1]
+		}
+	}
+
+	// Phase 2: Fallback - identify product without version
+	for _, sp := range serverPatterns {
+		if sp.pattern.MatchString(serverHeader) {
+			return sp.product, ""
+		}
+	}
+
+	return "", ""
 }
 
 // buildOPTIONSRequest creates an RFC 3261 compliant SIP OPTIONS request
