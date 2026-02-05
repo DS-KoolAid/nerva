@@ -295,3 +295,7 @@ func (p *ZooKeeperPlugin) Type() plugins.Protocol {
 func (p *ZooKeeperPlugin) Priority() int {
 	return 100
 }
+
+func (p *ZooKeeperPlugin) IsWeakMatch() bool {
+	return false
+}

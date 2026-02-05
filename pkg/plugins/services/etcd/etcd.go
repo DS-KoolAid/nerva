@@ -280,6 +280,10 @@ func (p *ETCDPlugin) Priority() int {
 	return 100
 }
 
+func (p *ETCDPlugin) IsWeakMatch() bool {
+	return false
+}
+
 // ETCDPeerPlugin methods (port 2380 - peer port)
 
 func (p *ETCDPeerPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.Target) (*plugins.Service, error) {
@@ -300,4 +304,8 @@ func (p *ETCDPeerPlugin) Type() plugins.Protocol {
 
 func (p *ETCDPeerPlugin) Priority() int {
 	return 100
+}
+
+func (p *ETCDPeerPlugin) IsWeakMatch() bool {
+	return false
 }

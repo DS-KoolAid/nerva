@@ -153,6 +153,10 @@ func (p *CODESYSPlugin) Priority() int {
 	return 400
 }
 
+func (p *CODESYSPlugin) IsWeakMatch() bool {
+	return false
+}
+
 // extractNullTerminatedString extracts a null-terminated string from byte array at given offset
 func extractNullTerminatedString(data []byte, offset int) string {
 	if offset >= len(data) {
