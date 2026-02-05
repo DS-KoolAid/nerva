@@ -68,6 +68,17 @@ var serverPatterns = []struct {
 	{"3CX", regexp.MustCompile(`(?i)3CX`)},
 }
 
+// CPE vendor mappings for known SIP servers (CPE 2.3 format)
+var cpeVendors = map[string]string{
+	"Asterisk":   "cpe:2.3:a:digium:asterisk:%s:*:*:*:*:*:*:*",
+	"Kamailio":   "cpe:2.3:a:kamailio:kamailio:%s:*:*:*:*:*:*:*",
+	"OpenSIPS":   "cpe:2.3:a:opensips:opensips:%s:*:*:*:*:*:*:*",
+	"FreeSWITCH": "cpe:2.3:a:freeswitch:freeswitch:%s:*:*:*:*:*:*:*",
+	"FreePBX":    "cpe:2.3:a:freepbx:freepbx:%s:*:*:*:*:*:*:*",
+	"Cisco":      "cpe:2.3:a:cisco:unified_communications_manager:%s:*:*:*:*:*:*:*",
+	"3CX":        "cpe:2.3:a:3cx:phone_system:%s:*:*:*:*:*:*:*",
+}
+
 type UDPPlugin struct{}
 type TCPPlugin struct{}
 type TLSPlugin struct{}
@@ -100,6 +111,25 @@ func extractSIPVersion(serverHeader string) (product, version string) {
 	}
 
 	return "", ""
+}
+
+// buildSIPCPE generates CPE string for detected SIP product
+func buildSIPCPE(product, version string) string {
+	if product == "" {
+		return ""
+	}
+
+	cpeTemplate, exists := cpeVendors[product]
+	if !exists {
+		return ""
+	}
+
+	// Use version if available, otherwise use wildcard
+	if version == "" {
+		version = "*"
+	}
+
+	return fmt.Sprintf(cpeTemplate, version)
 }
 
 // buildOPTIONSRequest creates an RFC 3261 compliant SIP OPTIONS request
@@ -236,13 +266,23 @@ func (p *UDPPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.Tar
 		return nil, nil
 	}
 
+	// Extract version information
+	product, version := extractSIPVersion(data.Server)
+	cpe := buildSIPCPE(product, version)
+
+	var cpes []string
+	if cpe != "" {
+		cpes = []string{cpe}
+	}
+
 	payload := plugins.ServiceSIP{
 		Banner:         data.Banner,
 		Server:         data.Server,
 		AllowedMethods: data.AllowedMethods,
+		CPEs:           cpes,
 	}
 
-	return plugins.CreateServiceFrom(target, payload, false, "", plugins.UDP), nil
+	return plugins.CreateServiceFrom(target, payload, false, version, plugins.UDP), nil
 }
 
 func (p *UDPPlugin) PortPriority(port uint16) bool {
@@ -271,13 +311,23 @@ func (p *TCPPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.Tar
 		return nil, nil
 	}
 
+	// Extract version information
+	product, version := extractSIPVersion(data.Server)
+	cpe := buildSIPCPE(product, version)
+
+	var cpes []string
+	if cpe != "" {
+		cpes = []string{cpe}
+	}
+
 	payload := plugins.ServiceSIP{
 		Banner:         data.Banner,
 		Server:         data.Server,
 		AllowedMethods: data.AllowedMethods,
+		CPEs:           cpes,
 	}
 
-	return plugins.CreateServiceFrom(target, payload, false, "", plugins.TCP), nil
+	return plugins.CreateServiceFrom(target, payload, false, version, plugins.TCP), nil
 }
 
 func (p *TCPPlugin) PortPriority(port uint16) bool {
@@ -306,13 +356,23 @@ func (p *TLSPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.Tar
 		return nil, nil
 	}
 
+	// Extract version information
+	product, version := extractSIPVersion(data.Server)
+	cpe := buildSIPCPE(product, version)
+
+	var cpes []string
+	if cpe != "" {
+		cpes = []string{cpe}
+	}
+
 	payload := plugins.ServiceSIPS{
 		Banner:         data.Banner,
 		Server:         data.Server,
 		AllowedMethods: data.AllowedMethods,
+		CPEs:           cpes,
 	}
 
-	return plugins.CreateServiceFrom(target, payload, true, "", plugins.TCPTLS), nil
+	return plugins.CreateServiceFrom(target, payload, true, version, plugins.TCPTLS), nil
 }
 
 func (p *TLSPlugin) PortPriority(port uint16) bool {
