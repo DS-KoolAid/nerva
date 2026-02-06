@@ -60,11 +60,11 @@ func (p *Plugin) Name() string {
 func (p *Plugin) Run(conn net.Conn, timeout time.Duration, target plugins.Target) (*plugins.Service, error) {
 	// Send Who-Is broadcast (8 bytes)
 	// BVLC Type=0x81, Function=0x0A (Original-Unicast-NPDU), Length=0x0008
-	// NPDU Version=0x01, Control=0x04 (expecting reply, no DNET/SNET), no DNET/DLEN/Hop
+	// NPDU Version=0x01, Control=0x00 (no special options, standard for Who-Is), no DNET/DLEN/Hop
 	// APDU Type=0x10 (Unconfirmed-Request), Service=0x08 (Who-Is)
 	whoIs := []byte{
 		0x81, 0x0A, 0x00, 0x08, // BVLC: Type, Function, Length
-		0x01, 0x04,             // NPDU: Version, Control
+		0x01, 0x00,             // NPDU: Version, Control
 		0x10, 0x08,             // APDU: Type, Service (Who-Is)
 	}
 
