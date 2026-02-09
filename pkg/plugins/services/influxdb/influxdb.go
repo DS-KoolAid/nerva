@@ -113,7 +113,7 @@ func buildInfluxDBHTTPRequest(path, host string) string {
 	return fmt.Sprintf(
 		"GET %s HTTP/1.1\r\n"+
 			"Host: %s\r\n"+
-			"User-Agent: fingerprintx/1.1.13\r\n"+
+			"User-Agent: nerva/1.0\r\n"+
 			"Connection: close\r\n"+
 			"\r\n",
 		path, host)
@@ -325,7 +325,7 @@ func (p *InfluxDBPlugin) Run(conn net.Conn, timeout time.Duration, target plugin
 
 	// Phase 2: Fallback to /health detection (2.x+ only, useful if headers stripped)
 	// Note: We need a new connection for this probe since we already read from the first one
-	// For now, we'll skip the fallback since fingerprintx typically gives us one connection per probe
+	// For now, we'll skip the fallback since nerva typically gives us one connection per probe
 	// If /ping didn't detect InfluxDB, it's likely not InfluxDB or is misconfigured
 
 	// Not detected
@@ -339,7 +339,6 @@ func (p *InfluxDBPlugin) PortPriority(port uint16) bool {
 func (p *InfluxDBPlugin) Name() string {
 	return INFLUXDB
 }
-
 func (p *InfluxDBPlugin) Type() plugins.Protocol {
 	return plugins.TCP
 }

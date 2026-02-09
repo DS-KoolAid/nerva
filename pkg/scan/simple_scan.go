@@ -32,6 +32,7 @@ var dialer = &net.Dialer{
 var sortedTCPPlugins = make([]plugins.Plugin, 0)
 var sortedTCPTLSPlugins = make([]plugins.Plugin, 0)
 var sortedUDPPlugins = make([]plugins.Plugin, 0)
+var sortedSCTPPlugins = make([]plugins.Plugin, 0)
 var tlsConfig = tls.Config{} //nolint:gosec
 
 func init() {
@@ -48,6 +49,7 @@ func init() {
 	tlsConfig.InsecureSkipVerify = true //nolint:gosec
 	tlsConfig.CipherSuites = cipherSuites
 	tlsConfig.MinVersion = tls.VersionTLS10
+	tlsConfig.Renegotiation = tls.RenegotiateFreelyAsClient
 }
 
 func setupPlugins() {
@@ -59,6 +61,7 @@ func setupPlugins() {
 	sortedTCPPlugins = append(sortedTCPPlugins, plugins.Plugins[plugins.TCP]...)
 	sortedTCPTLSPlugins = append(sortedTCPTLSPlugins, plugins.Plugins[plugins.TCPTLS]...)
 	sortedUDPPlugins = append(sortedUDPPlugins, plugins.Plugins[plugins.UDP]...)
+	sortedSCTPPlugins = append(sortedSCTPPlugins, plugins.Plugins[plugins.SCTP]...)
 
 	sort.Slice(sortedTCPPlugins, func(i, j int) bool {
 		return sortedTCPPlugins[i].Priority() < sortedTCPPlugins[j].Priority()
@@ -68,6 +71,9 @@ func setupPlugins() {
 	})
 	sort.Slice(sortedTCPTLSPlugins, func(i, j int) bool {
 		return sortedTCPTLSPlugins[i].Priority() < sortedTCPTLSPlugins[j].Priority()
+	})
+	sort.Slice(sortedSCTPPlugins, func(i, j int) bool {
+		return sortedSCTPPlugins[i].Priority() < sortedSCTPPlugins[j].Priority()
 	})
 }
 
@@ -110,22 +116,19 @@ func (c *Config) UDPScanTarget(target plugins.Target) (*plugins.Service, error) 
 	return nil, nil
 }
 
-// simpleScanTarget attempts to identify the service that is running on a given
-// port. The fingerprinter supports two modes of operation referred to as the
-// fast lane and slow lane. The fast lane aims to be as fast as possible and
-// only attempts to fingerprint services by mapping them to their default port.
-// The slow lane isn't as focused on performance and instead tries to be as
-// accurate as possible.
-func (c *Config) SimpleScanTarget(target plugins.Target) (*plugins.Service, error) {
+// SCTPScanTarget performs SCTP scanning of the target.
+// On Linux: Full SCTP features via kernel module.
+// On other platforms: Returns error (SCTP not supported).
+func (c *Config) SCTPScanTarget(target plugins.Target) (*plugins.Service, error) {
 	ip := target.Address.Addr().String()
 	port := target.Address.Port()
 
-	// first check the default port mappings for TCP / TLS
-	for _, plugin := range sortedTCPPlugins {
+	// First check default port mappings
+	for _, plugin := range sortedSCTPPlugins {
 		if plugin.PortPriority(port) {
-			conn, err := DialTCP(ip, port)
+			conn, err := DialSCTP(ip, port)
 			if err != nil {
-				return nil, fmt.Errorf("unable to connect, err = %w", err)
+				return nil, fmt.Errorf("SCTP connection failed: %w", err)
 			}
 			result, err := simplePluginRunner(conn, target, c, plugin)
 			if err != nil && c.Verbose {
@@ -137,23 +140,75 @@ func (c *Config) SimpleScanTarget(target plugins.Target) (*plugins.Service, erro
 		}
 	}
 
+	// Fast mode: only check default port mappings
+	if c.FastMode {
+		return nil, nil
+	}
+
+	// Slow scan: try all SCTP plugins
+	for _, plugin := range sortedSCTPPlugins {
+		conn, err := DialSCTP(ip, port)
+		if err != nil {
+			return nil, fmt.Errorf("SCTP connection failed: %w", err)
+		}
+		result, err := simplePluginRunner(conn, target, c, plugin)
+		if result != nil && err == nil {
+			return result, nil
+		}
+	}
+
+	return nil, nil
+}
+
+// simpleScanTarget attempts to identify the service that is running on a given
+// port. The fingerprinter supports two modes of operation referred to as the
+// fast lane and slow lane. The fast lane aims to be as fast as possible and
+// only attempts to fingerprint services by mapping them to their default port.
+// The slow lane isn't as focused on performance and instead tries to be as
+// accurate as possible.
+
+func (c *Config) SimpleScanTarget(target plugins.Target) ([]*plugins.Service, error) {
+	ip := target.Address.Addr().String()
+	port := target.Address.Port()
+
+	// first check the default port mappings for TCP / TLS
+	for _, plugin := range sortedTCPPlugins {
+		if !plugin.PortPriority(port) {
+			continue
+		}
+
+		conn, err := DialTCP(ip, port)
+		if err != nil {
+			return nil, fmt.Errorf("unable to connect, err = %w", err)
+		}
+		result, err := simplePluginRunner(conn, target, c, plugin)
+		if err != nil && c.Verbose {
+			log.Printf("error: %v scanning %v\n", err, target.Address.String())
+		}
+		if result != nil && err == nil {
+			return []*plugins.Service{result}, nil
+		}
+	}
+
 	tlsConn, tlsErr := DialTLS(target)
 	isTLS := tlsErr == nil
 	if isTLS {
 		for _, plugin := range sortedTCPTLSPlugins {
-			if plugin.PortPriority(port) {
-				result, err := simplePluginRunner(tlsConn, target, c, plugin)
-				if err != nil && c.Verbose {
-					log.Printf("error: %v scanning %v\n", err, target.Address.String())
-				}
-				if result != nil && err == nil {
-					// identified plugin match
-					return result, nil
-				}
-				tlsConn, err = DialTLS(target)
-				if err != nil {
-					return nil, fmt.Errorf("error connecting via TLS, err = %w", err)
-				}
+			if !plugin.PortPriority(port) {
+				continue
+			}
+
+			result, err := simplePluginRunner(tlsConn, target, c, plugin)
+			if err != nil && c.Verbose {
+				log.Printf("error: %v scanning %v\n", err, target.Address.String())
+			}
+			if result != nil && err == nil {
+				return []*plugins.Service{result}, nil
+			}
+
+			tlsConn, err = DialTLS(target)
+			if err != nil {
+				return nil, fmt.Errorf("error connecting via TLS, err = %w", err)
 			}
 		}
 	}
@@ -176,8 +231,7 @@ func (c *Config) SimpleScanTarget(target plugins.Target) (*plugins.Service, erro
 				log.Printf("error: %v scanning %v\n", err, target.Address.String())
 			}
 			if result != nil && err == nil {
-				// identified plugin match
-				return result, nil
+				return []*plugins.Service{result}, nil
 			}
 		}
 	} else {
@@ -191,8 +245,7 @@ func (c *Config) SimpleScanTarget(target plugins.Target) (*plugins.Service, erro
 				log.Printf("error: %v scanning %v\n", err, target.Address.String())
 			}
 			if result != nil && err == nil {
-				// identified plugin match
-				return result, nil
+				return []*plugins.Service{result}, nil
 			}
 		}
 	}
