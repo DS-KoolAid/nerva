@@ -36,66 +36,67 @@ const (
 const TypeService string = "service"
 
 const (
-	ProtoDNS        = "dns"
-	ProtoDHCP       = "dhcp"
-	ProtoDiameter   = "diameter"
-	ProtoDB2        = "db2"
-	ProtoCassandra  = "cassandra"
-	ProtoChromaDB   = "chromadb"
-	ProtoCouchDB    = "couchdb"
+	ProtoDNS           = "dns"
+	ProtoDHCP          = "dhcp"
+	ProtoDiameter      = "diameter"
+	ProtoDB2           = "db2"
+	ProtoCassandra     = "cassandra"
+	ProtoChromaDB      = "chromadb"
+	ProtoCouchDB       = "couchdb"
 	ProtoEcho          = "echo"
 	ProtoElasticsearch = "elasticsearch"
 	ProtoFirebird      = "firebird"
 	ProtoFTP           = "ftp"
 	ProtoHTTP          = "http"
-	ProtoHTTPS      = "https"
-	ProtoHTTP2      = "http2"
-	ProtoIMAP       = "imap"
-	ProtoIMAPS      = "imaps"
-	ProtoInfluxDB   = "influxdb"
-	ProtoIPMI       = "ipmi"
-	ProtoIPSEC      = "ipsec"
-	ProtoJDWP       = "jdwp"
-	ProtoKafka      = "kafka"
-	ProtoKubernetes = "kubernetes"
-	ProtoLDAP       = "ldap"
-	ProtoLDAPS      = "ldaps"
+	ProtoHTTPS         = "https"
+	ProtoHTTP2         = "http2"
+	ProtoIMAP          = "imap"
+	ProtoIMAPS         = "imaps"
+	ProtoInfluxDB      = "influxdb"
+	ProtoIPMI          = "ipmi"
+	ProtoIPSEC         = "ipsec"
+	ProtoJDWP          = "jdwp"
+	ProtoKafka         = "kafka"
+	ProtoKubernetes    = "kubernetes"
+	ProtoL2TP          = "l2tp"
+	ProtoLDAP          = "ldap"
+	ProtoLDAPS         = "ldaps"
 	ProtoMemcached     = "memcached"
 	ProtoMilvus        = "milvus"
 	ProtoMilvusMetrics = "milvus-metrics"
 	ProtoModbus        = "modbus"
-	ProtoMongoDB    = "mongodb"
-	ProtoMQTT       = "mqtt"
-	ProtoMSSQL      = "mssql"
-	ProtoMySQL      = "mysql"
-	ProtoNeo4j      = "neo4j"
-	ProtoNetbios    = "netbios"
-	ProtoNTP        = "ntp"
-	ProtoOracle     = "oracle"
-	ProtoOpenVPN    = "openvpn"
-	ProtoPinecone   = "pinecone"
-	ProtoPOP3       = "pop3"
-	ProtoPOP3S      = "pop3s"
-	ProtoPostgreSQL = "postgresql"
-	ProtoRDP        = "rdp"
-	ProtoRPC        = "rpc"
-	ProtoRedis      = "redis"
-	ProtoRedisTLS   = "redis"
-	ProtoRMI        = "java-rmi"
-	ProtoRsync      = "rsync"
-	ProtoRtsp       = "rtsp"
-	ProtoSMB        = "smb"
-	ProtoSMPP       = "smpp"
-	ProtoSMTP       = "smtp"
-	ProtoSMTPS      = "smtps"
-	ProtoSNMP       = "snmp"
-	ProtoSNPP       = "snpp"
-	ProtoSSH        = "ssh"
-	ProtoStun       = "stun"
-	ProtoSybase     = "sybase"
-	ProtoTelnet     = "telnet"
-	ProtoVNC        = "vnc"
-	ProtoUnknown    = "unknown"
+	ProtoMongoDB       = "mongodb"
+	ProtoMQTT          = "mqtt"
+	ProtoMSSQL         = "mssql"
+	ProtoMySQL         = "mysql"
+	ProtoNeo4j         = "neo4j"
+	ProtoNetbios       = "netbios"
+	ProtoNTP           = "ntp"
+	ProtoOracle        = "oracle"
+	ProtoOpenVPN       = "openvpn"
+	ProtoPinecone      = "pinecone"
+	ProtoPOP3          = "pop3"
+	ProtoPOP3S         = "pop3s"
+	ProtoPostgreSQL    = "postgresql"
+	ProtoRDP           = "rdp"
+	ProtoRPC           = "rpc"
+	ProtoRedis         = "redis"
+	ProtoRedisTLS      = "redis"
+	ProtoRMI           = "java-rmi"
+	ProtoRsync         = "rsync"
+	ProtoRtsp          = "rtsp"
+	ProtoSMB           = "smb"
+	ProtoSMPP          = "smpp"
+	ProtoSMTP          = "smtp"
+	ProtoSMTPS         = "smtps"
+	ProtoSNMP          = "snmp"
+	ProtoSNPP          = "snpp"
+	ProtoSSH           = "ssh"
+	ProtoStun          = "stun"
+	ProtoSybase        = "sybase"
+	ProtoTelnet        = "telnet"
+	ProtoVNC           = "vnc"
+	ProtoUnknown       = "unknown"
 )
 
 // Used as a key for maps to plugins.
@@ -203,6 +204,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoKubernetes:
 		var p ServiceKubernetes
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoL2TP:
+		var p ServiceL2TP
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoOracle:
@@ -421,10 +426,10 @@ type ServiceSMB struct {
 func (e ServiceSMB) Type() string { return ProtoSMB }
 
 type ServiceMySQL struct {
-	PacketType   string   `json:"packetType"`       // the type of packet returned by the server (i.e. handshake or error)
-	ErrorMessage string   `json:"errorMsg"`         // error message if the server returns an error packet
-	ErrorCode    int      `json:"errorCode"`        // error code returned if the server returns an error packet
-	CPEs         []string `json:"cpes,omitempty"`   // Common Platform Enumeration identifiers for vulnerability tracking
+	PacketType   string   `json:"packetType"`     // the type of packet returned by the server (i.e. handshake or error)
+	ErrorMessage string   `json:"errorMsg"`       // error message if the server returns an error packet
+	ErrorCode    int      `json:"errorCode"`      // error code returned if the server returns an error packet
+	CPEs         []string `json:"cpes,omitempty"` // Common Platform Enumeration identifiers for vulnerability tracking
 }
 
 func (e ServiceMySQL) Type() string { return ProtoMySQL }
@@ -603,6 +608,18 @@ type ServiceKubernetes struct {
 
 func (e ServiceKubernetes) Type() string { return ProtoKubernetes }
 
+type ServiceL2TP struct {
+	ProtocolVersion  string `json:"protocolVersion,omitempty"`
+	HostName         string `json:"hostName,omitempty"`
+	VendorName       string `json:"vendorName,omitempty"`
+	FirmwareRevision uint16 `json:"firmwareRevision,omitempty"`
+	AssignedTunnelID uint16 `json:"assignedTunnelId,omitempty"`
+	FramingCaps      uint32 `json:"framingCaps,omitempty"`
+	BearerCaps       uint32 `json:"bearerCaps,omitempty"`
+}
+
+func (e ServiceL2TP) Type() string { return ProtoL2TP }
+
 type ServiceOracle struct {
 	Info string `json:"info"`
 }
@@ -610,7 +627,7 @@ type ServiceOracle struct {
 func (e ServiceOracle) Type() string { return ProtoOracle }
 
 type ServicePinecone struct {
-	CPEs       []string `json:"cpes,omitempty"`  // Common Platform Enumeration with wildcard version
+	CPEs       []string `json:"cpes,omitempty"`       // Common Platform Enumeration with wildcard version
 	APIVersion string   `json:"apiVersion,omitempty"` // Pinecone API version from x-pinecone-api-version header
 }
 
