@@ -46,12 +46,15 @@ var versionPatterns = []struct {
 	pattern *regexp.Regexp
 }{
 	{"Asterisk", regexp.MustCompile(`Asterisk\s+PBX\s+(\d+\.\d+\.\d+)`)},
+	{"Audiocodes", regexp.MustCompile(`Audiocodes[^\d]*Mediant\s*(\d+)`)},
 	{"Kamailio", regexp.MustCompile(`Kamailio/(\d+\.\d+\.\d+)`)},
+	{"Kamailio", regexp.MustCompile(`(?i)kamailio\s*\((\d+\.\d+\.\d+)`)},
 	{"OpenSIPS", regexp.MustCompile(`OpenSIPS/(\d+\.\d+\.\d+)`)},
-	{"FreeSWITCH", regexp.MustCompile(`FreeSWITCH[^\d]*(\d+\.\d+\.\d+)`)},
+	{"FreeSWITCH", regexp.MustCompile(`(?i)FreeSWITCH[^\d]*(\d+\.\d+(?:\.\d+)?)`)},
 	{"FreePBX", regexp.MustCompile(`FPBX[^\d]*(\d+\.\d+\.\d+)`)},
 	{"Cisco", regexp.MustCompile(`Cisco[^\d]*(\d+\.\d+)`)},
 	{"3CX", regexp.MustCompile(`3CXPhoneSystem\s+(\d+\.\d+)`)},
+	{"TANDBERG", regexp.MustCompile(`TANDBERG/\d+\s+\(([\w.]+)\)`)},
 }
 
 // Server identification patterns (no version required, used as fallback)
@@ -60,23 +63,27 @@ var serverPatterns = []struct {
 	pattern *regexp.Regexp
 }{
 	{"Asterisk", regexp.MustCompile(`(?i)Asterisk`)},
+	{"Audiocodes", regexp.MustCompile(`(?i)Audiocodes`)},
 	{"Kamailio", regexp.MustCompile(`(?i)kamailio`)},
 	{"OpenSIPS", regexp.MustCompile(`(?i)OpenSIPS`)},
 	{"FreeSWITCH", regexp.MustCompile(`(?i)FreeSWITCH`)},
 	{"FreePBX", regexp.MustCompile(`(?i)FreePBX|FPBX`)},
 	{"Cisco", regexp.MustCompile(`(?i)Cisco`)},
 	{"3CX", regexp.MustCompile(`(?i)3CX`)},
+	{"TANDBERG", regexp.MustCompile(`(?i)TANDBERG`)},
 }
 
 // CPE vendor mappings for known SIP servers (CPE 2.3 format)
 var cpeVendors = map[string]string{
 	"Asterisk":   "cpe:2.3:a:digium:asterisk:%s:*:*:*:*:*:*:*",
+	"Audiocodes": "cpe:2.3:h:audiocodes:mediant_%s:*:*:*:*:*:*:*:*",
 	"Kamailio":   "cpe:2.3:a:kamailio:kamailio:%s:*:*:*:*:*:*:*",
 	"OpenSIPS":   "cpe:2.3:a:opensips:opensips:%s:*:*:*:*:*:*:*",
 	"FreeSWITCH": "cpe:2.3:a:freeswitch:freeswitch:%s:*:*:*:*:*:*:*",
 	"FreePBX":    "cpe:2.3:a:freepbx:freepbx:%s:*:*:*:*:*:*:*",
 	"Cisco":      "cpe:2.3:a:cisco:unified_communications_manager:%s:*:*:*:*:*:*:*",
 	"3CX":        "cpe:2.3:a:3cx:phone_system:%s:*:*:*:*:*:*:*",
+	"TANDBERG":   "cpe:2.3:h:cisco:telepresence_codec:%s:*:*:*:*:*:*:*",
 }
 
 type UDPPlugin struct{}
