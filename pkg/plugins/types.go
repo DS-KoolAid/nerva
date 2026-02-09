@@ -74,6 +74,7 @@ const (
 	ProtoMongoDB    = "mongodb"
 	ProtoMQTT       = "mqtt"
 	ProtoMSSQL      = "mssql"
+	ProtoNATS       = "nats"
 	ProtoMySQL      = "mysql"
 	ProtoNeo4j      = "neo4j"
 	ProtoNetbios    = "netbios"
@@ -265,6 +266,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoMongoDB:
 		var p ServiceMongoDB
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoNATS:
+		var p ServiceNATS
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoNeo4j:
@@ -726,6 +731,28 @@ type ServiceNeo4j struct {
 }
 
 func (e ServiceNeo4j) Type() string { return ProtoNeo4j }
+
+type ServiceNATS struct {
+	ServerID     string   `json:"serverId,omitempty"`
+	ServerName   string   `json:"serverName,omitempty"`
+	AuthRequired bool     `json:"authRequired"`
+	TLSRequired  bool     `json:"tlsRequired"`
+	TLSAvailable bool     `json:"tlsAvailable,omitempty"`
+	JetStream    bool     `json:"jetStream,omitempty"`
+	Headers      bool     `json:"headers,omitempty"`
+	Proto        int      `json:"proto,omitempty"`
+	MaxPayload   int64    `json:"maxPayload,omitempty"`
+	GoVersion    string   `json:"goVersion,omitempty"`
+	GitCommit    string   `json:"gitCommit,omitempty"`
+	Cluster      string   `json:"cluster,omitempty"`
+	Domain       string   `json:"domain,omitempty"`
+	ConnectURLs  []string `json:"connectUrls,omitempty"`
+	ClientIP     string   `json:"clientIp,omitempty"`
+	LDM          bool     `json:"ldm,omitempty"`
+	CPEs         []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceNATS) Type() string { return ProtoNATS }
 
 type ServiceRtsp struct {
 	ServerInfo string `json:"serverInfo"`
