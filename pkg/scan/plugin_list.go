@@ -70,6 +70,7 @@ import (
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/smb"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/smpp"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/smtp"
+	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/sip"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/snmp"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/snpp"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/ssh"

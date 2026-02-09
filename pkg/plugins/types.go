@@ -99,6 +99,8 @@ const (
 	ProtoSMTPS      = "smtps"
 	ProtoSNMP       = "snmp"
 	ProtoSNPP       = "snpp"
+	ProtoSIP        = "sip"
+	ProtoSIPS       = "sips"
 	ProtoSSH        = "ssh"
 	ProtoStun       = "stun"
 	ProtoSybase     = "sybase"
@@ -344,6 +346,14 @@ func (e Service) Metadata() Metadata {
 		var p ServiceSNPP
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoSIP:
+		var p ServiceSIP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoSIPS:
+		var p ServiceSIPS
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoAMQP:
 		var p ServiceAMQP
 		_ = json.Unmarshal(e.Raw, &p)
@@ -518,6 +528,24 @@ type ServiceSNPP struct {
 }
 
 func (e ServiceSNPP) Type() string { return ProtoSNPP }
+
+type ServiceSIP struct {
+	Banner         string   `json:"banner,omitempty"`
+	Server         string   `json:"server,omitempty"`
+	AllowedMethods []string `json:"allowedMethods,omitempty"`
+	CPEs           []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceSIP) Type() string { return ProtoSIP }
+
+type ServiceSIPS struct {
+	Banner         string   `json:"banner,omitempty"`
+	Server         string   `json:"server,omitempty"`
+	AllowedMethods []string `json:"allowedMethods,omitempty"`
+	CPEs           []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceSIPS) Type() string { return ProtoSIPS }
 
 type ServiceNTP struct{}
 
