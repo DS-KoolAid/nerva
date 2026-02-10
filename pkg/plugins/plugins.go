@@ -49,6 +49,8 @@ func (p Protocol) String() (s string) {
 		s = "TCPTLS"
 	case UDP:
 		s = "UDP"
+	case SCTP:
+		s = "SCTP"
 	default:
 		panic("No string name for protocol %d.")
 	}

@@ -63,7 +63,7 @@ func TestBuildHelloMessage(t *testing.T) {
 
 	// Verify user_agent is present in the message
 	assert.True(t, bytes.Contains(msg, []byte("user_agent")), "must contain user_agent key")
-	assert.True(t, bytes.Contains(msg, []byte("fingerprintx")), "must contain fingerprintx user agent")
+	assert.True(t, bytes.Contains(msg, []byte("nerva")), "must contain nerva user agent")
 }
 
 func TestBuildLogonMessage(t *testing.T) {

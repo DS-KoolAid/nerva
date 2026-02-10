@@ -26,3 +26,10 @@ go.work
 
 # Fingerprintx binary
 /fingerprintx
+
+# SCTP testing artifacts
+coverage-sctp.out
+*.pcap
+/testdata/freediameter/*.pem
+/testdata/freediameter/*.key
+/nerva

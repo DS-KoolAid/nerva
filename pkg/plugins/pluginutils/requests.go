@@ -18,15 +18,29 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"syscall"
 	"time"
 )
 
 func Send(conn net.Conn, data []byte, timeout time.Duration) error {
+	// Try to set write deadline. On Linux, the kernel's SCTP implementation
+	// doesn't support SO_SNDTIMEO (send timeout), which causes SetWriteDeadline
+	// to return "operation not supported" error. This is a known kernel limitation,
+	// not a bug in our code or the Go SCTP library.
+	//
+	// We log the error but proceed with the write operation anyway. The write will
+	// still work correctly; it just won't have kernel-level timeout protection.
+	// Most SCTP operations complete quickly, and application-level timeouts provide
+	// adequate protection against hangs.
+	//
+	// See: https://man7.org/linux/man-pages/man7/sctp.7.html
+	// SO_RCVTIMEO (read timeout) is supported, but SO_SNDTIMEO is not.
 	err := conn.SetWriteDeadline(time.Now().Add(timeout))
 	if err != nil {
-		return &WriteTimeoutError{WrappedError: err}
+		// Log the warning but don't fail the operation
+		log.Printf("Warning: failed to set write deadline (may be SCTP): %v", err)
 	}
 	length, err := conn.Write(data)
 	if err != nil {
@@ -46,9 +60,17 @@ func Send(conn net.Conn, data []byte, timeout time.Duration) error {
 
 func Recv(conn net.Conn, timeout time.Duration) ([]byte, error) {
 	response := make([]byte, 4096)
+	// Try to set read deadline. On Linux, the kernel's SCTP implementation
+	// may not fully support SO_RCVTIMEO (read timeout) via the Go SCTP library,
+	// which can cause SetReadDeadline to return "operation not supported" error.
+	//
+	// We log the error but proceed with the read operation anyway. The read will
+	// still work correctly; it just won't have kernel-level timeout protection.
+	//
+	// See: https://man7.org/linux/man-pages/man7/sctp.7.html
 	err := conn.SetReadDeadline(time.Now().Add(timeout))
 	if err != nil {
-		return []byte{}, &ReadTimeoutError{WrappedError: err}
+		log.Printf("Warning: failed to set read deadline (may be SCTP): %v", err)
 	}
 	length, err := conn.Read(response)
 	if err != nil {

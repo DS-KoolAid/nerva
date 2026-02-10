@@ -65,12 +65,12 @@ func createScanConfig(config cliConfig) scan.Config {
 		DefaultTimeout: time.Duration(config.timeout) * time.Millisecond,
 		FastMode:       config.fastMode,
 		UDP:            config.useUDP,
-		Verbose:        config.verbose,
+		SCTP:           config.useSCTP,		Verbose:        config.verbose,
 	}
 }
 
 func isPriorityPort(port int) bool {
-	protocols := []plugins.Protocol{plugins.UDP, plugins.TCP, plugins.TCPTLS}
+	protocols := []plugins.Protocol{plugins.UDP, plugins.TCP, plugins.TCPTLS, plugins.SCTP}
 	for _, protocol := range protocols {
 		if pluginList, exists := plugins.Plugins[protocol]; exists {
 			for _, plugin := range pluginList {
