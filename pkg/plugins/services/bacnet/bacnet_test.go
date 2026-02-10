@@ -178,8 +178,9 @@ func TestVendorMapping(t *testing.T) {
 		expectedName string
 	}{
 		{5, "Johnson Controls Inc."},
-		{12, "Honeywell Inc."},
-		{7, "Siemens Building Technologies"},
+		{17, "Honeywell Inc."},
+		{7, "Siemens Schweiz AG (Formerly: Landis & Staefa Division Europe)"},
+		{36, "Tridium Inc."},
 		{9999, "unknown (ID: 9999)"},
 	}
 
@@ -199,8 +200,9 @@ func TestVendorSlug(t *testing.T) {
 		expectedSlug string
 	}{
 		{5, "johnson_controls"},
-		{12, "honeywell"},
+		{17, "honeywell"},
 		{7, "siemens"},
+		{36, "tridium"},
 		{9999, "*"},
 	}
 
@@ -231,7 +233,7 @@ func TestCPEGeneration(t *testing.T) {
 		},
 		{
 			name:        "known vendor without model",
-			vendorID:    12,
+			vendorID:    17,
 			model:       "",
 			firmware:    "",
 			expectedCPE: "cpe:2.3:h:honeywell:*:*:*:*:*:*:*:*:*",
