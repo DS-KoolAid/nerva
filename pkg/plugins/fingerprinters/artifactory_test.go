@@ -42,16 +42,6 @@ func TestArtifactoryFingerprinter_Match(t *testing.T) {
 		expected    bool
 	}{
 		{
-			name:        "matches JSON content type",
-			contentType: "application/json",
-			expected:    true,
-		},
-		{
-			name:        "matches JSON with charset",
-			contentType: "application/json; charset=utf-8",
-			expected:    true,
-		},
-		{
 			name:        "matches X-Artifactory-Id header with HTML",
 			contentType: "text/html",
 			headers:     map[string]string{"X-Artifactory-Id": "abc123"},
@@ -142,25 +132,6 @@ func TestArtifactoryFingerprinter_Fingerprint_ValidArtifactory(t *testing.T) {
 			expectedCPE:      "cpe:2.3:a:jfrog:artifactory:7.77.3:*:*:*:*:*:*:*",
 			expectedMetadata: map[string]any{},
 		},
-		{
-			name: "On-prem with JSON body (legacy /api/system/version)",
-			body: `{
-				"version": "7.63.14",
-				"revision": "76314900",
-				"addons": ["jfrog-ha"],
-				"license": "Enterprise"
-			}`,
-			headers: map[string]string{
-				"Content-Type": "application/json",
-			},
-			expectedTech:    "artifactory",
-			expectedVersion: "7.63.14",
-			expectedCPE:     "cpe:2.3:a:jfrog:artifactory:7.63.14:*:*:*:*:*:*:*",
-			expectedMetadata: map[string]any{
-				"license": "Enterprise",
-				"addons":  []string{"jfrog-ha"},
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -211,85 +182,6 @@ func TestArtifactoryFingerprinter_Fingerprint_HeaderOnly(t *testing.T) {
 	assert.Equal(t, "artifactory", result.Technology)
 	assert.Equal(t, "", result.Version)
 	assert.Contains(t, result.CPEs, "cpe:2.3:a:jfrog:artifactory:*:*:*:*:*:*:*:*")
-}
-
-func TestArtifactoryFingerprinter_Fingerprint_InvalidJSON(t *testing.T) {
-	fp := &ArtifactoryFingerprinter{}
-	resp := &http.Response{
-		StatusCode: 200,
-		Header: http.Header{
-			"Content-Type": []string{"application/json"},
-		},
-	}
-
-	body := []byte("not valid json")
-
-	result, err := fp.Fingerprint(resp, body)
-
-	assert.Nil(t, result)
-	assert.Nil(t, err) // Should return nil result, not error
-}
-
-func TestArtifactoryFingerprinter_Fingerprint_MissingFields(t *testing.T) {
-	tests := []struct {
-		name string
-		body string
-	}{
-		{
-			name: "missing version field",
-			body: `{
-				"revision": "77703900",
-				"license": "OSS"
-			}`,
-		},
-		{
-			name: "empty version field",
-			body: `{
-				"version": "",
-				"revision": "77703900",
-				"license": "OSS"
-			}`,
-		},
-		{
-			name: "valid JSON but not Artifactory format",
-			body: `{"status": "ok"}`,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fp := &ArtifactoryFingerprinter{}
-			resp := &http.Response{
-				StatusCode: 200,
-				Header: http.Header{
-					"Content-Type": []string{"application/json"},
-				},
-			}
-
-			result, err := fp.Fingerprint(resp, []byte(tt.body))
-
-			assert.Nil(t, result)
-			assert.Nil(t, err) // Should return nil result, not error
-		})
-	}
-}
-
-func TestArtifactoryFingerprinter_Fingerprint_NotArtifactory(t *testing.T) {
-	fp := &ArtifactoryFingerprinter{}
-	resp := &http.Response{
-		StatusCode: 200,
-		Header: http.Header{
-			"Content-Type": []string{"application/json"},
-		},
-	}
-
-	// Valid JSON but not Artifactory format
-	body := []byte(`{"status": "ok", "version": "1.0.0"}`)
-
-	result, err := fp.Fingerprint(resp, body)
-
-	assert.Nil(t, result)
-	assert.Nil(t, err)
 }
 
 func TestParseXJFrogVersion(t *testing.T) {

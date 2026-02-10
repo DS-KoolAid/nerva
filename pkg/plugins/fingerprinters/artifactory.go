@@ -44,15 +44,17 @@ Format breakdown:
 
 # Cloud vs On-Prem Differences
 
+Both cloud and on-prem instances:
+  - Use /artifactory/api/system/ping endpoint
+  - Ping endpoint works WITHOUT authentication
+  - Version information is provided in headers (X-JFrog-Version)
+
 Cloud instances (e.g., jfrog.io):
   - Use /artifactory/ prefix for all API endpoints
-  - /artifactory/api/system/ping works WITHOUT authentication
-  - /artifactory/api/system/version REQUIRES authentication (401)
 
 On-prem instances (e.g., port 8081):
-  - May use /api/ prefix directly
-  - Both ping and version endpoints may be available
-  - Version endpoint may return JSON response body with detailed metadata
+  - May use /api/ prefix directly for some endpoints
+  - Ping endpoint still requires /artifactory/ prefix
 
 # Port Configuration
 
@@ -74,7 +76,6 @@ Artifactory typically runs on:
 package fingerprinters
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -82,15 +83,6 @@ import (
 
 // ArtifactoryFingerprinter detects JFrog Artifactory instances via /artifactory/api/system/ping endpoint
 type ArtifactoryFingerprinter struct{}
-
-// artifactoryVersionResponse represents the response from /api/system/version (on-prem instances)
-// Kept for backward compatibility with on-prem instances that may return JSON body
-type artifactoryVersionResponse struct {
-	Version  string   `json:"version"`
-	Revision string   `json:"revision"`
-	Addons   []string `json:"addons"`
-	License  string   `json:"license"`
-}
 
 func init() {
 	Register(&ArtifactoryFingerprinter{})
@@ -115,13 +107,7 @@ func (f *ArtifactoryFingerprinter) Match(resp *http.Response) bool {
 
 	// Check for X-JFrog-Version header containing "Artifactory"
 	jfrogVersion := resp.Header.Get("X-JFrog-Version")
-	if strings.HasPrefix(jfrogVersion, "Artifactory/") {
-		return true
-	}
-
-	// Check for JSON content type (for backward compatibility with /api/system/version endpoint)
-	contentType := resp.Header.Get("Content-Type")
-	return strings.Contains(contentType, "application/json")
+	return strings.HasPrefix(jfrogVersion, "Artifactory/")
 }
 
 // extractVersionFromXJFrogHeader extracts version from X-JFrog-Version header
@@ -162,35 +148,6 @@ func checkArtifactoryIdentityHeaders(resp *http.Response, metadata map[string]an
 	return detected
 }
 
-// parseArtifactoryJSONVersion parses JSON body for version info
-// Returns (version string, detected bool), modifies metadata map in place
-func parseArtifactoryJSONVersion(body []byte, currentVersion string, metadata map[string]any) (string, bool) {
-	var versionResp artifactoryVersionResponse
-	if err := json.Unmarshal(body, &versionResp); err != nil || versionResp.Version == "" {
-		return currentVersion, false
-	}
-
-	// Validate it's actually Artifactory by checking required fields
-	// Artifactory responses must have version AND at least one of: revision, license, or addons
-	if versionResp.Revision == "" && versionResp.License == "" && len(versionResp.Addons) == 0 {
-		return currentVersion, false
-	}
-
-	version := currentVersion
-	if version == "" {
-		version = versionResp.Version
-	}
-
-	if versionResp.License != "" {
-		metadata["license"] = versionResp.License
-	}
-	if len(versionResp.Addons) > 0 {
-		metadata["addons"] = versionResp.Addons
-	}
-
-	return version, true
-}
-
 func (f *ArtifactoryFingerprinter) Fingerprint(resp *http.Response, body []byte) (*FingerprintResult, error) {
 	metadata := make(map[string]any)
 
@@ -200,13 +157,6 @@ func (f *ArtifactoryFingerprinter) Fingerprint(resp *http.Response, body []byte)
 	// Phase 2: Check for Artifactory identity headers
 	if checkArtifactoryIdentityHeaders(resp, metadata) {
 		detected = true
-	}
-
-	// Phase 3: Try JSON body parsing (for /api/system/version on on-prem)
-	if !detected || version == "" {
-		var jsonDetected bool
-		version, jsonDetected = parseArtifactoryJSONVersion(body, version, metadata)
-		detected = detected || jsonDetected
 	}
 
 	if !detected {
