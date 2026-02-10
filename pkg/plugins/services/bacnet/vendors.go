@@ -56,7 +56,7 @@ var vendorNames = map[uint16]string{
 	33: "WAGO Kontakttechnik GmbH",
 	34: "KMC Controls Inc.",
 	35: "Circon Systems Inc.",
-	36: "Phoenix Controls Corporation",
+	36: "Tridium Inc.",
 	37: "Andover Controls Corporation",
 	38: "IES Technologies Inc.",
 	39: "Automated Buildings Consulting",
@@ -94,6 +94,7 @@ func getVendorSlug(vendorID uint16) string {
 		18: "schneider_electric",
 		24: "distech",
 		34: "kmc_controls",
+		36: "tridium",
 		44: "loytec",
 	}
 	if slug, ok := slugs[vendorID]; ok {
