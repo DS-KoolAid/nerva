@@ -110,6 +110,7 @@ const (
 	ProtoVNC        = "vnc"
 	ProtoNFS        = "nfs"
 	ProtoZooKeeper  = "zookeeper"
+	ProtoBACnet     = "bacnet"
 	ProtoUnknown    = "unknown"
 )
 
@@ -366,6 +367,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoAMQP:
 		var p ServiceAMQP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoBACnet:
+		var p ServiceBACnet
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoZooKeeper:
@@ -955,3 +960,16 @@ type ServiceNFS struct {
 }
 
 func (e ServiceNFS) Type() string { return ProtoNFS }
+
+type ServiceBACnet struct {
+	DeviceInstance uint32   `json:"deviceInstance"`
+	VendorID       uint16   `json:"vendorID"`
+	VendorName     string   `json:"vendorName"`
+	MaxAPDU        uint16   `json:"maxAPDU,omitempty"`
+	Segmentation   string   `json:"segmentation,omitempty"`
+	ModelName      string   `json:"modelName,omitempty"`
+	FirmwareRev    string   `json:"firmwareRevision,omitempty"`
+	CPEs           []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceBACnet) Type() string { return ProtoBACnet }
