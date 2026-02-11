@@ -118,6 +118,80 @@ const (
 	ProtoVNC              = "vnc"
 	ProtoZooKeeper        = "zookeeper"
 	ProtoUnknown          = "unknown"
+	ProtoDB2              = "db2"
+	ProtoCODESYS          = "codesys"
+	ProtoCassandra        = "cassandra"
+	ProtoChromaDB   = "chromadb"
+	ProtoCouchDB    = "couchdb"
+	ProtoEtcd       = "etcd"
+	ProtoEcho          = "echo"
+	ProtoElasticsearch = "elasticsearch"
+	ProtoFirebird      = "firebird"
+	ProtoFTP           = "ftp"
+	ProtoHTTP          = "http"
+	ProtoHTTPS      = "https"
+	ProtoHTTP2      = "http2"
+	ProtoIEC104     = "iec104"
+	ProtoH323       = "h323"
+	ProtoIAX2       = "iax2"
+	ProtoIMAP       = "imap"
+	ProtoIMAPS      = "imaps"
+	ProtoInfluxDB   = "influxdb"
+	ProtoIKEv2      = "ikev2"
+	ProtoIPMI       = "ipmi"
+	ProtoIPSEC      = "ipsec"
+	ProtoJDWP       = "jdwp"
+	ProtoKafka      = "kafka"
+	ProtoKubernetes = "kubernetes"
+	ProtoLDAP       = "ldap"
+	ProtoLDAPS      = "ldaps"
+	ProtoM3UA       = "m3ua"
+	ProtoMemcached     = "memcached"
+	ProtoMilvus        = "milvus"
+	ProtoMilvusMetrics = "milvus-metrics"
+	ProtoModbus        = "modbus"
+	ProtoMongoDB    = "mongodb"
+	ProtoMQTT       = "mqtt"
+	ProtoMSSQL      = "mssql"
+	ProtoMySQL      = "mysql"
+	ProtoNeo4j      = "neo4j"
+	ProtoNetbios    = "netbios"
+	ProtoNTP        = "ntp"
+	ProtoOracle     = "oracle"
+	ProtoOpenVPN    = "openvpn"
+	ProtoOPCUA      = "opcua"
+	ProtoPinecone   = "pinecone"
+	ProtoPOP3       = "pop3"
+	ProtoPOP3S      = "pop3s"
+	ProtoPulsar     = "pulsar"
+	ProtoPulsarAdmin = "pulsar-admin"
+	ProtoPostgreSQL = "postgresql"
+	ProtoRDP        = "rdp"
+	ProtoRPC        = "rpc"
+	ProtoRedis      = "redis"
+	ProtoRedisTLS   = "redis"
+	ProtoRMI        = "java-rmi"
+	ProtoRsync      = "rsync"
+	ProtoRtsp       = "rtsp"
+	ProtoS7comm     = "s7comm"
+	ProtoSMB        = "smb"
+	ProtoSMPP       = "smpp"
+	ProtoSMTP       = "smtp"
+	ProtoSMTPS      = "smtps"
+	ProtoSNMP       = "snmp"
+	ProtoSNPP       = "snpp"
+	ProtoSIP        = "sip"
+	ProtoSIPS       = "sips"
+	ProtoSSH        = "ssh"
+	ProtoStun       = "stun"
+	ProtoSybase     = "sybase"
+	ProtoTelnet     = "telnet"
+	ProtoTFTP       = "tftp"
+	ProtoVNC        = "vnc"
+	ProtoNFS        = "nfs"
+	ProtoZooKeeper  = "zookeeper"
+	ProtoBACnet     = "bacnet"
+	ProtoUnknown    = "unknown"
 )
 
 // Used as a key for maps to plugins.
@@ -333,6 +407,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoInfluxDB:
 		var p ServiceInfluxDB
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoIAX2:
+		var p ServiceIAX2
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoIKEv2:
@@ -640,6 +718,12 @@ type ServiceIKEv2 struct {
 }
 
 func (e ServiceIKEv2) Type() string { return "IKEv2" }
+
+type ServiceIAX2 struct {
+	Detected bool `json:"detected"`
+}
+
+func (e ServiceIAX2) Type() string { return ProtoIAX2 }
 
 type ServiceIPSEC struct {
 	ResponderISP string `json:"responderISP"`
