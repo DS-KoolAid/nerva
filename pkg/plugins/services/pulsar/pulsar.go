@@ -39,13 +39,13 @@ Pulsar Binary Protocol Wire Format:
     [totalSize:4 bytes BE][cmdSize:4 bytes BE][protobuf command bytes]
 
   Connect Command (hand-crafted protobuf):
-    BaseCommand field 1 (type) = 1 (CONNECT): 08 01
+    BaseCommand field 1 (type) = 2 (CONNECT): 08 02
     BaseCommand field 2 (connect) = nested CommandConnect: 12 XX (XX = length)
     CommandConnect field 1 (client_version) = "Pulsar-Client-Go-v0.1.0": 0a + varint length + UTF-8
     CommandConnect field 4 (protocol_version) = 6: 20 06
 
   Connected Response (expected):
-    BaseCommand field 1 (type) = 2 (CONNECTED)
+    BaseCommand field 1 (type) = 3 (CONNECTED)
     BaseCommand field 3 (connected) = nested CommandConnected
     CommandConnected field 1 (server_version) = "Pulsar-Broker-vX.X.X"
     CommandConnected field 2 (protocol_version) = varint
@@ -55,7 +55,7 @@ Protobuf Parsing Strategy (without library):
   - Each field: (field_number << 3 | wire_type) as varint tag
   - Wire type 0 = varint, wire type 2 = length-delimited (strings, nested messages)
   - For Connected response:
-    - Tag 08 = field 1 (type), value should be 02 (CONNECTED)
+    - Tag 08 = field 1 (type), value should be 03 (CONNECTED)
     - Tag 1a = field 3 (connected), followed by length + nested message
     - Inside connected: tag 0a = field 1 (server_version), length + string
     - Inside connected: tag 10 = field 2 (protocol_version), varint
@@ -251,7 +251,7 @@ func detectPulsarBinary(conn net.Conn, isTLS bool, timeout time.Duration, target
 	}
 
 	cmdType := pbData[1]
-	if cmdType != 0x02 { // CONNECTED = 2
+	if cmdType != 0x03 { // CONNECTED = 3
 		return nil, &utils.InvalidResponseErrorInfo{
 			Service: PULSAR,
 			Info:    fmt.Sprintf("unexpected command type: %d", cmdType),
@@ -359,8 +359,8 @@ func buildConnectFrame() []byte {
 	// Build BaseCommand
 	var baseCmd []byte
 
-	// Field 1: type = 1 (CONNECT)
-	baseCmd = append(baseCmd, 0x08, 0x01)
+	// Field 1: type = 2 (CONNECT)
+	baseCmd = append(baseCmd, 0x08, 0x02)
 
 	// Field 2: connect (nested message)
 	baseCmd = append(baseCmd, 0x12)
@@ -489,9 +489,12 @@ func parseServerVersionFromConnected(pbData []byte) string {
 
 			serverVersion := string(pbData[pos:end])
 
-			// Extract version by trimming "Pulsar-Broker-v" prefix
+			// Extract version by trimming known prefixes
 			if strings.HasPrefix(serverVersion, "Pulsar-Broker-v") {
 				return strings.TrimPrefix(serverVersion, "Pulsar-Broker-v")
+			}
+			if strings.HasPrefix(serverVersion, "Pulsar Server") {
+				return strings.TrimPrefix(serverVersion, "Pulsar Server")
 			}
 
 			return serverVersion

@@ -43,11 +43,11 @@ func TestBuildConnectFrame(t *testing.T) {
 	assert.Equal(t, uint32(4+cmdSize), totalSize, "totalSize should equal 4 + cmdSize")
 	assert.Equal(t, len(frame)-8, int(cmdSize), "cmdSize should match protobuf length")
 
-	// Verify protobuf starts with BaseCommand.type = CONNECT (08 01)
+	// Verify protobuf starts with BaseCommand.type = CONNECT (08 02)
 	protobuf := frame[8:]
 	assert.GreaterOrEqual(t, len(protobuf), 2, "Protobuf should have at least 2 bytes")
 	assert.Equal(t, byte(0x08), protobuf[0], "First byte should be field tag 08 (type)")
-	assert.Equal(t, byte(0x01), protobuf[1], "Second byte should be value 01 (CONNECT)")
+	assert.Equal(t, byte(0x02), protobuf[1], "Second byte should be value 02 (CONNECT)")
 
 	// Verify client_version string is present somewhere in frame
 	clientVersion := "Pulsar-Client-Go-v0.14.0"
@@ -158,6 +158,12 @@ func TestExtractServerVersion(t *testing.T) {
 			expectedVersion: "2.10.4",
 		},
 		{
+			name: "pulsar_server_format_no_dash",
+			// Pulsar 4.x format: "Pulsar Server4.1.2" (space, no dash, no "Broker-v")
+			protobuf: buildMockConnectedResponse("Pulsar Server4.1.2", 6),
+			expectedVersion: "4.1.2",
+		},
+		{
 			name: "non_pulsar_version",
 			// Server version without "Pulsar-Broker-v" prefix
 			protobuf: buildMockConnectedResponse("SomeOther-v1.0", 6),
@@ -227,6 +233,20 @@ func TestParseServerVersionFromConnected(t *testing.T) {
 				0x34, 0x2e, 0x30, 0x2e, 0x33, // "4.0.3"
 			},
 			expectedVersion: "4.0.3",
+		},
+		{
+			name: "pulsar_server_space_format",
+			// CommandConnected { server_version = "Pulsar Server4.1.2" }
+			protobuf: func() []byte {
+				var msg []byte
+				version := "Pulsar Server4.1.2"
+				msg = append(msg, 0x0a)                    // field 1 (server_version)
+				msg = append(msg, byte(len(version)))      // length
+				msg = append(msg, []byte(version)...)      // string
+				msg = append(msg, 0x10, 0x06)              // field 2 (protocol_version = 6)
+				return msg
+			}(),
+			expectedVersion: "4.1.2",
 		},
 		{
 			name: "empty_protobuf",
@@ -386,8 +406,8 @@ func TestDetectPulsarBinary(t *testing.T) {
 		},
 		{
 			name: "wrong_command_type",
-			// Frame with type = 3 (PRODUCER) instead of 2 (CONNECTED)
-			response:      buildFrameWithCommandType(3),
+			// Frame with type = 1 (not CONNECTED=3)
+			response:      buildFrameWithCommandType(1),
 			shouldDetect:  false,
 			expectedError: true,
 		},
@@ -447,9 +467,10 @@ func TestPulsarDocker(t *testing.T) {
 				return res != nil && res.Protocol == plugins.ProtoPulsar
 			},
 			RunConfig: dockertest.RunOptions{
-				Repository: "apachepulsar/pulsar",
-				Tag:        "3.0.9",
-				Cmd:        []string{"bin/pulsar", "standalone"},
+				Repository:   "apachepulsar/pulsar",
+				Tag:          "3.0.9",
+				Cmd:          []string{"bin/pulsar", "standalone"},
+				ExposedPorts: []string{"6650/tcp"},
 			},
 		},
 		{
@@ -460,20 +481,25 @@ func TestPulsarDocker(t *testing.T) {
 				return res != nil && res.Protocol == plugins.ProtoPulsarAdmin
 			},
 			RunConfig: dockertest.RunOptions{
-				Repository: "apachepulsar/pulsar",
-				Tag:        "3.0.9",
-				Cmd:        []string{"bin/pulsar", "standalone"},
+				Repository:   "apachepulsar/pulsar",
+				Tag:          "3.0.9",
+				Cmd:          []string{"bin/pulsar", "standalone"},
+				ExposedPorts: []string{"8080/tcp"},
 			},
 		},
 	}
 
-	var p *Plugin
+	// Binary and admin tests use different plugin types
+	pluginMap := map[string]plugins.Plugin{
+		"pulsar-binary": &Plugin{},
+		"pulsar-admin":  &AdminPlugin{},
+	}
 
 	for _, tc := range testcases {
 		tc := tc
 		t.Run(tc.Description, func(t *testing.T) {
 			t.Parallel()
-			err := test.RunTest(t, tc, p)
+			err := test.RunTest(t, tc, pluginMap[tc.Description])
 			if err != nil {
 				t.Errorf("%s", err.Error())
 			}
@@ -498,8 +524,8 @@ func buildMockConnectedResponse(serverVersion string, protocolVersion int) []byt
 	// Build BaseCommand
 	var baseCmd []byte
 
-	// Field 1: type = 2 (CONNECTED)
-	baseCmd = append(baseCmd, 0x08, 0x02)
+	// Field 1: type = 3 (CONNECTED)
+	baseCmd = append(baseCmd, 0x08, 0x03)
 
 	// Field 3: connected (tag 1a = field 3, wire type 2)
 	baseCmd = append(baseCmd, 0x1a)
