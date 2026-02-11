@@ -22,6 +22,7 @@ type cliConfig struct {
 	fastMode        bool
 	timeout         int
 	useUDP          bool
+	useSCTP         bool
 	verbose         bool
 	showErrors      bool
 }

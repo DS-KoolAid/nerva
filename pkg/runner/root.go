@@ -70,7 +70,8 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&config.fastMode, "fast", "f", false, "fast mode")
 	rootCmd.PersistentFlags().
 		BoolVarP(&config.useUDP, "udp", "U", false, "run UDP plugins")
-
+	rootCmd.PersistentFlags().
+		BoolVarP(&config.useSCTP, "sctp", "S", false, "run SCTP plugins (Linux only)")
 	rootCmd.PersistentFlags().BoolVarP(&config.verbose, "verbose", "v", false, "verbose mode")
 	rootCmd.PersistentFlags().
 		IntVarP(&config.timeout, "timeout", "w", 2000, "timeout (milliseconds)")

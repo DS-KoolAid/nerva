@@ -31,72 +31,90 @@ const (
 	UDP
 	TCP
 	TCPTLS
+	SCTP
 )
 
 const TypeService string = "service"
 
 const (
-	ProtoDNS           = "dns"
-	ProtoDHCP          = "dhcp"
-	ProtoDiameter      = "diameter"
-	ProtoDB2           = "db2"
-	ProtoCassandra     = "cassandra"
-	ProtoChromaDB      = "chromadb"
-	ProtoCouchDB       = "couchdb"
-	ProtoEcho          = "echo"
-	ProtoElasticsearch = "elasticsearch"
-	ProtoFirebird      = "firebird"
-	ProtoFTP           = "ftp"
-	ProtoHTTP          = "http"
-	ProtoHTTPS         = "https"
-	ProtoHTTP2         = "http2"
-	ProtoIMAP          = "imap"
-	ProtoIMAPS         = "imaps"
-	ProtoInfluxDB      = "influxdb"
-	ProtoIPMI          = "ipmi"
-	ProtoIPSEC         = "ipsec"
-	ProtoJDWP          = "jdwp"
-	ProtoKafka         = "kafka"
-	ProtoKubernetes    = "kubernetes"
-	ProtoL2TP          = "l2tp"
-	ProtoLDAP          = "ldap"
-	ProtoLDAPS         = "ldaps"
-	ProtoMemcached     = "memcached"
-	ProtoMilvus        = "milvus"
-	ProtoMilvusMetrics = "milvus-metrics"
-	ProtoModbus        = "modbus"
-	ProtoMongoDB       = "mongodb"
-	ProtoMQTT          = "mqtt"
-	ProtoMSSQL         = "mssql"
-	ProtoMySQL         = "mysql"
-	ProtoNeo4j         = "neo4j"
-	ProtoNetbios       = "netbios"
-	ProtoNTP           = "ntp"
-	ProtoOracle        = "oracle"
-	ProtoOpenVPN       = "openvpn"
-	ProtoPinecone      = "pinecone"
-	ProtoPOP3          = "pop3"
-	ProtoPOP3S         = "pop3s"
-	ProtoPostgreSQL    = "postgresql"
-	ProtoRDP           = "rdp"
-	ProtoRPC           = "rpc"
-	ProtoRedis         = "redis"
-	ProtoRedisTLS      = "redis"
-	ProtoRMI           = "java-rmi"
-	ProtoRsync         = "rsync"
-	ProtoRtsp          = "rtsp"
-	ProtoSMB           = "smb"
-	ProtoSMPP          = "smpp"
-	ProtoSMTP          = "smtp"
-	ProtoSMTPS         = "smtps"
-	ProtoSNMP          = "snmp"
-	ProtoSNPP          = "snpp"
-	ProtoSSH           = "ssh"
-	ProtoStun          = "stun"
-	ProtoSybase        = "sybase"
-	ProtoTelnet        = "telnet"
-	ProtoVNC           = "vnc"
-	ProtoUnknown       = "unknown"
+	ProtoActiveMQOpenWire = "activemq-openwire"
+	ProtoAMQP             = "amqp"
+	ProtoBACnet           = "bacnet"
+	ProtoCassandra        = "cassandra"
+	ProtoChromaDB         = "chromadb"
+	ProtoCODESYS          = "codesys"
+	ProtoCouchDB          = "couchdb"
+	ProtoDB2              = "db2"
+	ProtoDHCP             = "dhcp"
+	ProtoDiameter         = "diameter"
+	ProtoDNP3             = "dnp3"
+	ProtoDNS              = "dns"
+	ProtoDocker           = "docker"
+	ProtoEcho             = "echo"
+	ProtoElasticsearch    = "elasticsearch"
+	ProtoEtcd             = "etcd"
+	ProtoFirebird         = "firebird"
+	ProtoFTP              = "ftp"
+	ProtoH323             = "h323"
+	ProtoHTTP             = "http"
+	ProtoHTTP2            = "http2"
+	ProtoHTTPS            = "https"
+	ProtoIKEv2            = "ikev2"
+	ProtoIMAP             = "imap"
+	ProtoIMAPS            = "imaps"
+	ProtoInfluxDB         = "influxdb"
+	ProtoIPMI             = "ipmi"
+	ProtoIPSEC            = "ipsec"
+	ProtoJDWP             = "jdwp"
+	ProtoKafka            = "kafka"
+	ProtoKubernetes       = "kubernetes"
+	ProtoL2TP             = "l2tp"
+	ProtoLDAP             = "ldap"
+	ProtoLDAPS            = "ldaps"
+	ProtoM3UA             = "m3ua"
+	ProtoMemcached        = "memcached"
+	ProtoMilvus           = "milvus"
+	ProtoMilvusMetrics    = "milvus-metrics"
+	ProtoModbus           = "modbus"
+	ProtoMongoDB          = "mongodb"
+	ProtoMQTT             = "mqtt"
+	ProtoMSSQL            = "mssql"
+	ProtoMySQL            = "mysql"
+	ProtoNeo4j            = "neo4j"
+	ProtoNetbios          = "netbios"
+	ProtoNFS              = "nfs"
+	ProtoNTP              = "ntp"
+	ProtoOPCUA            = "opcua"
+	ProtoOpenVPN          = "openvpn"
+	ProtoOracle           = "oracle"
+	ProtoPinecone         = "pinecone"
+	ProtoPOP3             = "pop3"
+	ProtoPOP3S            = "pop3s"
+	ProtoPostgreSQL       = "postgresql"
+	ProtoRDP              = "rdp"
+	ProtoRedis            = "redis"
+	ProtoRedisTLS         = "redis"
+	ProtoRMI              = "java-rmi"
+	ProtoRPC              = "rpc"
+	ProtoRsync            = "rsync"
+	ProtoRtsp             = "rtsp"
+	ProtoS7comm           = "s7comm"
+	ProtoSIP              = "sip"
+	ProtoSIPS             = "sips"
+	ProtoSMB              = "smb"
+	ProtoSMPP             = "smpp"
+	ProtoSMTP             = "smtp"
+	ProtoSMTPS            = "smtps"
+	ProtoSNMP             = "snmp"
+	ProtoSNPP             = "snpp"
+	ProtoSSH              = "ssh"
+	ProtoStun             = "stun"
+	ProtoSybase           = "sybase"
+	ProtoTelnet           = "telnet"
+	ProtoTFTP             = "tftp"
+	ProtoVNC              = "vnc"
+	ProtoZooKeeper        = "zookeeper"
+	ProtoUnknown          = "unknown"
 )
 
 // Used as a key for maps to plugins.
@@ -126,6 +144,14 @@ func (e Service) Metadata() Metadata {
 		var p ServiceDiameter
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoDNP3:
+		var p ServiceDNP3
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoDocker:
+		var p ServiceDocker
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoDB2:
 		var p ServiceDB2
 		_ = json.Unmarshal(e.Raw, &p)
@@ -138,12 +164,24 @@ func (e Service) Metadata() Metadata {
 		var p ServiceChromaDB
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoCODESYS:
+		var p ServiceCODESYS
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoEtcd:
+		var p ServiceEtcd
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoFirebird:
 		var p ServiceFirebird
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoFTP:
 		var p ServiceFTP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoH323:
+		var p ServiceH323
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoPostgreSQL:
@@ -214,6 +252,10 @@ func (e Service) Metadata() Metadata {
 		var p ServiceOracle
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoOPCUA:
+		var p ServiceOPCUA
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoPinecone:
 		var p ServicePinecone
 		_ = json.Unmarshal(e.Raw, &p)
@@ -250,6 +292,10 @@ func (e Service) Metadata() Metadata {
 		var p ServiceLDAPS
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoM3UA:
+		var p ServiceM3UA
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoSSH:
 		var p ServiceSSH
 		_ = json.Unmarshal(e.Raw, &p)
@@ -274,12 +320,20 @@ func (e Service) Metadata() Metadata {
 		var p ServiceRtsp
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoS7comm:
+		var p ServiceS7comm
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoIMAPS:
 		var p ServiceIMAPS
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoInfluxDB:
 		var p ServiceInfluxDB
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoIKEv2:
+		var p ServiceIKEv2
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoMQTT:
@@ -308,6 +362,38 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoSNPP:
 		var p ServiceSNPP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoTFTP:
+		var p ServiceTFTP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoSIP:
+		var p ServiceSIP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoSIPS:
+		var p ServiceSIPS
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoActiveMQOpenWire:
+		var p ServiceActiveMQOpenWire
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoAMQP:
+		var p ServiceAMQP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoBACnet:
+		var p ServiceBACnet
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoZooKeeper:
+		var p ServiceZooKeeper
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoNFS:
+		var p ServiceNFS
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	default:
@@ -384,6 +470,16 @@ type ServiceHTTPS struct {
 }
 
 func (e ServiceHTTPS) Type() string { return ProtoHTTPS }
+
+type ServiceH323 struct {
+	VendorID     string   `json:"vendorID,omitempty"`
+	ProductName  string   `json:"productName,omitempty"`
+	Version      string   `json:"version,omitempty"`
+	TerminalType string   `json:"terminalType,omitempty"`
+	CPEs         []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceH323) Type() string { return ProtoH323 }
 
 type ServiceRDP struct {
 	OSFingerprint       string `json:"fingerprint,omitempty"` // e.g. Windows Server 2016 or 2019
@@ -463,6 +559,24 @@ type ServiceSNPP struct {
 
 func (e ServiceSNPP) Type() string { return ProtoSNPP }
 
+type ServiceSIP struct {
+	Banner         string   `json:"banner,omitempty"`
+	Server         string   `json:"server,omitempty"`
+	AllowedMethods []string `json:"allowedMethods,omitempty"`
+	CPEs           []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceSIP) Type() string { return ProtoSIP }
+
+type ServiceSIPS struct {
+	Banner         string   `json:"banner,omitempty"`
+	Server         string   `json:"server,omitempty"`
+	AllowedMethods []string `json:"allowedMethods,omitempty"`
+	CPEs           []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceSIPS) Type() string { return ProtoSIPS }
+
 type ServiceNTP struct{}
 
 func (e ServiceNTP) Type() string { return ProtoNTP }
@@ -491,6 +605,14 @@ type ServiceInfluxDB struct {
 
 func (e ServiceInfluxDB) Type() string { return ProtoInfluxDB }
 
+type ServiceIKEv2 struct {
+	ResponderSPI string `json:"responderSPI"`
+	MessageID    string `json:"messageID"`
+	Vendor       string `json:"vendor,omitempty"`
+}
+
+func (e ServiceIKEv2) Type() string { return "IKEv2" }
+
 type ServiceIPSEC struct {
 	ResponderISP string `json:"responderISP"`
 	MessageID    string `json:"messageID"`
@@ -513,6 +635,12 @@ type ServiceTelnet struct {
 }
 
 func (e ServiceTelnet) Type() string { return ProtoTelnet }
+
+type ServiceTFTP struct {
+	ErrorMessage string `json:"errorMessage,omitempty"`
+}
+
+func (e ServiceTFTP) Type() string { return ProtoTFTP }
 
 type ServiceRedis struct {
 	AuthRequired bool     `json:"authRequired:"`
@@ -637,6 +765,15 @@ type ServiceOpenVPN struct{}
 
 func (e ServiceOpenVPN) Type() string { return ProtoOpenVPN }
 
+type ServiceOPCUA struct {
+	ApplicationName string   `json:"applicationName,omitempty"` // Server application name
+	ProductURI      string   `json:"productUri,omitempty"`      // Product URI from server
+	SecurityModes   []string `json:"securityModes,omitempty"`   // None, Sign, SignAndEncrypt
+	CPEs            []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceOPCUA) Type() string { return ProtoOPCUA }
+
 type ServiceMQTT struct{}
 
 func (e ServiceMQTT) Type() string { return ProtoMQTT }
@@ -685,6 +822,20 @@ type ServiceRtsp struct {
 
 func (e ServiceRtsp) Type() string { return ProtoRtsp }
 
+type ServiceS7comm struct {
+	PLCType         string   `json:"plcType,omitempty"`         // "S7-300", "S7-400", "S7-1200", "S7-1500"
+	ModuleType      string   `json:"moduleType,omitempty"`      // Module type identifier from SZL
+	OrderCode       string   `json:"orderCode,omitempty"`       // 6ES7 XXX-XXXXX-XXXX
+	SerialNumber    string   `json:"serialNumber,omitempty"`    // Hardware serial number
+	FirmwareVersion string   `json:"firmwareVersion,omitempty"` // V1.2.3 format
+	ProtectionLevel uint8    `json:"protectionLevel,omitempty"` // 1=none, 2=read, 3=full
+	ModuleName      string   `json:"moduleName,omitempty"`      // PLC module name
+	PlantID         string   `json:"plantId,omitempty"`         // Plant/system identifier
+	CPEs            []string `json:"cpes,omitempty"`            // CPE identifiers
+}
+
+func (e ServiceS7comm) Type() string { return ProtoS7comm }
+
 type ServiceDNS struct{}
 
 func (e ServiceDNS) Type() string { return ProtoDNS }
@@ -710,6 +861,25 @@ type ServiceDiameter struct {
 
 func (e ServiceDiameter) Type() string { return ProtoDiameter }
 
+type ServiceDNP3 struct {
+	SourceAddress      uint16   `json:"sourceAddress,omitempty"`      // DNP3 source address
+	DestinationAddress uint16   `json:"destinationAddress,omitempty"` // DNP3 destination address
+	DeviceRole         string   `json:"deviceRole,omitempty"`         // "master" or "outstation"
+	FunctionCode       uint8    `json:"functionCode,omitempty"`       // Function code used in detection
+	CPEs               []string `json:"cpes,omitempty"`               // Common Platform Enumeration identifiers
+}
+
+func (e ServiceDNP3) Type() string { return ProtoDNP3 }
+
+type ServiceDocker struct {
+	ApiVersion string   `json:"apiVersion,omitempty"` // Docker API version (e.g., "1.43")
+	Os         string   `json:"os,omitempty"`         // Operating system (e.g., "linux")
+	Arch       string   `json:"arch,omitempty"`       // Architecture (e.g., "amd64")
+	CPEs       []string `json:"cpes,omitempty"`       // Common Platform Enumeration identifiers
+}
+
+func (e ServiceDocker) Type() string { return ProtoDocker }
+
 type ServiceDB2 struct {
 	ServerName string   `json:"serverName,omitempty"` // DB2 instance name
 	CPEs       []string `json:"cpes,omitempty"`
@@ -733,6 +903,26 @@ type ServiceChromaDB struct {
 }
 
 func (e ServiceChromaDB) Type() string { return ProtoChromaDB }
+
+type ServiceCODESYS struct {
+	Version     string   `json:"version,omitempty"`
+	DeviceName  string   `json:"deviceName,omitempty"`
+	VendorName  string   `json:"vendorName,omitempty"`
+	OSType      string   `json:"osType,omitempty"`
+	OSName      string   `json:"osName,omitempty"`
+	AuthEnabled bool     `json:"authEnabled,omitempty"`
+	CPEs        []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceCODESYS) Type() string { return ProtoCODESYS }
+
+type ServiceEtcd struct {
+	CPEs           []string `json:"cpes,omitempty"`
+	ClusterVersion string   `json:"clusterVersion,omitempty"`
+	PortType       string   `json:"portType,omitempty"` // "client" or "peer"
+}
+
+func (e ServiceEtcd) Type() string { return ProtoEtcd }
 
 type ServiceEcho struct{}
 
@@ -769,3 +959,58 @@ type ServiceRMI struct {
 }
 
 func (e ServiceRMI) Type() string { return ProtoRMI }
+
+type ServiceM3UA struct {
+	InfoString   string `json:"infoString,omitempty"`
+	ErrorCode    uint32 `json:"errorCode,omitempty"`
+	MessageClass uint8  `json:"messageClass,omitempty"`
+	MessageType  uint8  `json:"messageType,omitempty"`
+}
+
+func (e ServiceM3UA) Type() string { return ProtoM3UA }
+
+type ServiceActiveMQOpenWire struct {
+	Version int      `json:"version,omitempty"` // OpenWire protocol version (1-12)
+	CPEs    []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceActiveMQOpenWire) Type() string { return ProtoActiveMQOpenWire }
+
+type ServiceAMQP struct {
+	Product  string   `json:"product,omitempty"`  // e.g., "RabbitMQ"
+	Version  string   `json:"version,omitempty"`  // e.g., "3.12.0"
+	Platform string   `json:"platform,omitempty"` // e.g., "Erlang/OTP 26.0"
+	CPEs     []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceAMQP) Type() string { return ProtoAMQP }
+
+type ServiceZooKeeper struct {
+	CPEs        []string `json:"cpes,omitempty"`        // Common Platform Enumeration identifiers for vulnerability tracking
+	Mode        string   `json:"mode,omitempty"`        // ZooKeeper mode: standalone, leader, follower, observer
+	Connections int      `json:"connections,omitempty"` // Number of active connections
+	NodeCount   int      `json:"nodeCount,omitempty"`   // Number of ZNodes in the namespace
+	Restricted  bool     `json:"restricted,omitempty"`  // Whether commands are restricted by whitelist
+}
+
+func (e ServiceZooKeeper) Type() string { return ProtoZooKeeper }
+
+type ServiceNFS struct {
+	Version          int   `json:"version"`          // Highest detected NFS version (4, 3, or 2)
+	DetectedVersions []int `json:"detectedVersions"` // All versions that responded successfully
+}
+
+func (e ServiceNFS) Type() string { return ProtoNFS }
+
+type ServiceBACnet struct {
+	DeviceInstance uint32   `json:"deviceInstance"`
+	VendorID       uint16   `json:"vendorID"`
+	VendorName     string   `json:"vendorName"`
+	MaxAPDU        uint16   `json:"maxAPDU,omitempty"`
+	Segmentation   string   `json:"segmentation,omitempty"`
+	ModelName      string   `json:"modelName,omitempty"`
+	FirmwareRev    string   `json:"firmwareRevision,omitempty"`
+	CPEs           []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceBACnet) Type() string { return ProtoBACnet }
