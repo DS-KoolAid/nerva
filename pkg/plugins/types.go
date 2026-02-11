@@ -59,6 +59,7 @@ const (
 	ProtoHTTP             = "http"
 	ProtoHTTP2            = "http2"
 	ProtoHTTPS            = "https"
+	ProtoIEC104           = "iec104"
 	ProtoIKEv2            = "ikev2"
 	ProtoIMAP             = "imap"
 	ProtoIMAPS            = "imaps"
@@ -91,6 +92,8 @@ const (
 	ProtoPOP3             = "pop3"
 	ProtoPOP3S            = "pop3s"
 	ProtoPostgreSQL       = "postgresql"
+	ProtoPulsar           = "pulsar"
+	ProtoPulsarAdmin      = "pulsar-admin"
 	ProtoRDP              = "rdp"
 	ProtoRedis            = "redis"
 	ProtoRedisTLS         = "redis"
@@ -360,8 +363,20 @@ func (e Service) Metadata() Metadata {
 		var p ServicePOP3S
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoPulsar:
+		var p ServicePulsar
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoPulsarAdmin:
+		var p ServicePulsarAdmin
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoSNPP:
 		var p ServiceSNPP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoIEC104:
+		var p ServiceIEC104
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoTFTP:
@@ -548,6 +563,19 @@ type ServicePOP3S struct {
 }
 
 func (e ServicePOP3S) Type() string { return ProtoPOP3S }
+
+type ServicePulsar struct {
+	ProtocolVersion int      `json:"protocolVersion,omitempty"`
+	CPEs            []string `json:"cpes,omitempty"`
+}
+
+func (e ServicePulsar) Type() string { return ProtoPulsar }
+
+type ServicePulsarAdmin struct {
+	Clusters []string `json:"clusters,omitempty"`
+}
+
+func (e ServicePulsarAdmin) Type() string { return ProtoPulsarAdmin }
 
 type ServiceSNMP struct{}
 
@@ -938,6 +966,10 @@ func (e ServiceFirebird) Type() string { return ProtoFirebird }
 type ServiceIPMI struct{}
 
 func (e ServiceIPMI) Type() string { return ProtoIPMI }
+
+type ServiceIEC104 struct{}
+
+func (e ServiceIEC104) Type() string { return ProtoIEC104 }
 
 type ServiceRsync struct{}
 
