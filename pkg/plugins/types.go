@@ -37,15 +37,16 @@ const (
 const TypeService string = "service"
 
 const (
-	ProtoAMQP       = "amqp"
-	ProtoDNS        = "dns"
-	ProtoDHCP       = "dhcp"
-	ProtoDiameter   = "diameter"
-	ProtoDNP3       = "dnp3"
-	ProtoDocker     = "docker"
-	ProtoDB2        = "db2"
-	ProtoCODESYS    = "codesys"
-	ProtoCassandra  = "cassandra"
+	ProtoActiveMQOpenWire = "activemq-openwire"
+	ProtoAMQP             = "amqp"
+	ProtoDNS              = "dns"
+	ProtoDHCP             = "dhcp"
+	ProtoDiameter         = "diameter"
+	ProtoDNP3             = "dnp3"
+	ProtoDocker           = "docker"
+	ProtoDB2              = "db2"
+	ProtoCODESYS          = "codesys"
+	ProtoCassandra        = "cassandra"
 	ProtoChromaDB   = "chromadb"
 	ProtoCouchDB    = "couchdb"
 	ProtoEtcd       = "etcd"
@@ -61,6 +62,7 @@ const (
 	ProtoIMAP       = "imap"
 	ProtoIMAPS      = "imaps"
 	ProtoInfluxDB   = "influxdb"
+	ProtoIKEv2      = "ikev2"
 	ProtoIPMI       = "ipmi"
 	ProtoIPSEC      = "ipsec"
 	ProtoJDWP       = "jdwp"
@@ -86,6 +88,8 @@ const (
 	ProtoPinecone   = "pinecone"
 	ProtoPOP3       = "pop3"
 	ProtoPOP3S      = "pop3s"
+	ProtoPulsar     = "pulsar"
+	ProtoPulsarAdmin = "pulsar-admin"
 	ProtoPostgreSQL = "postgresql"
 	ProtoRDP        = "rdp"
 	ProtoRPC        = "rpc"
@@ -107,9 +111,11 @@ const (
 	ProtoStun       = "stun"
 	ProtoSybase     = "sybase"
 	ProtoTelnet     = "telnet"
+	ProtoTFTP       = "tftp"
 	ProtoVNC        = "vnc"
 	ProtoNFS        = "nfs"
 	ProtoZooKeeper  = "zookeeper"
+	ProtoBACnet     = "bacnet"
 	ProtoUnknown    = "unknown"
 )
 
@@ -324,6 +330,10 @@ func (e Service) Metadata() Metadata {
 		var p ServiceInfluxDB
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoIKEv2:
+		var p ServiceIKEv2
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoMQTT:
 		var p ServiceMQTT
 		_ = json.Unmarshal(e.Raw, &p)
@@ -348,12 +358,24 @@ func (e Service) Metadata() Metadata {
 		var p ServicePOP3S
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoPulsar:
+		var p ServicePulsar
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoPulsarAdmin:
+		var p ServicePulsarAdmin
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoSNPP:
 		var p ServiceSNPP
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoIEC104:
 		var p ServiceIEC104
+	case ProtoTFTP:
+		var p ServiceTFTP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoSIP:
 		var p ServiceSIP
 		_ = json.Unmarshal(e.Raw, &p)
@@ -362,8 +384,16 @@ func (e Service) Metadata() Metadata {
 		var p ServiceSIPS
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoActiveMQOpenWire:
+		var p ServiceActiveMQOpenWire
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoAMQP:
 		var p ServiceAMQP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoBACnet:
+		var p ServiceBACnet
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoZooKeeper:
@@ -527,6 +557,19 @@ type ServicePOP3S struct {
 
 func (e ServicePOP3S) Type() string { return ProtoPOP3S }
 
+type ServicePulsar struct {
+	ProtocolVersion int      `json:"protocolVersion,omitempty"`
+	CPEs            []string `json:"cpes,omitempty"`
+}
+
+func (e ServicePulsar) Type() string { return ProtoPulsar }
+
+type ServicePulsarAdmin struct {
+	Clusters []string `json:"clusters,omitempty"`
+}
+
+func (e ServicePulsarAdmin) Type() string { return ProtoPulsarAdmin }
+
 type ServiceSNMP struct{}
 
 func (e ServiceSNMP) Type() string { return ProtoSNMP }
@@ -583,6 +626,14 @@ type ServiceInfluxDB struct {
 
 func (e ServiceInfluxDB) Type() string { return ProtoInfluxDB }
 
+type ServiceIKEv2 struct {
+	ResponderSPI string `json:"responderSPI"`
+	MessageID    string `json:"messageID"`
+	Vendor       string `json:"vendor,omitempty"`
+}
+
+func (e ServiceIKEv2) Type() string { return "IKEv2" }
+
 type ServiceIPSEC struct {
 	ResponderISP string `json:"responderISP"`
 	MessageID    string `json:"messageID"`
@@ -605,6 +656,12 @@ type ServiceTelnet struct {
 }
 
 func (e ServiceTelnet) Type() string { return ProtoTelnet }
+
+type ServiceTFTP struct {
+	ErrorMessage string `json:"errorMessage,omitempty"`
+}
+
+func (e ServiceTFTP) Type() string { return ProtoTFTP }
 
 type ServiceRedis struct {
 	AuthRequired bool     `json:"authRequired:"`
@@ -925,6 +982,13 @@ type ServiceM3UA struct {
 
 func (e ServiceM3UA) Type() string { return ProtoM3UA }
 
+type ServiceActiveMQOpenWire struct {
+	Version int      `json:"version,omitempty"` // OpenWire protocol version (1-12)
+	CPEs    []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceActiveMQOpenWire) Type() string { return ProtoActiveMQOpenWire }
+
 type ServiceAMQP struct {
 	Product  string   `json:"product,omitempty"`  // e.g., "RabbitMQ"
 	Version  string   `json:"version,omitempty"`  // e.g., "3.12.0"
@@ -950,3 +1014,16 @@ type ServiceNFS struct {
 }
 
 func (e ServiceNFS) Type() string { return ProtoNFS }
+
+type ServiceBACnet struct {
+	DeviceInstance uint32   `json:"deviceInstance"`
+	VendorID       uint16   `json:"vendorID"`
+	VendorName     string   `json:"vendorName"`
+	MaxAPDU        uint16   `json:"maxAPDU,omitempty"`
+	Segmentation   string   `json:"segmentation,omitempty"`
+	ModelName      string   `json:"modelName,omitempty"`
+	FirmwareRev    string   `json:"firmwareRevision,omitempty"`
+	CPEs           []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceBACnet) Type() string { return ProtoBACnet }

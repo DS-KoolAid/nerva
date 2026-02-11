@@ -22,7 +22,9 @@ import (
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/fingerprinters"
 
 	// Standalone plugins for binary protocol detection
+	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/activemq"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/amqp"
+	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/bacnet"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/cassandra"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/db2"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/dhcp"
@@ -36,6 +38,7 @@ import (
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/http"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/h323"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/imap"
+	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/ikev2"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/influxdb"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/iec104"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/ipmi"
@@ -63,6 +66,7 @@ import (
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/openvpn"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/oracledb"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/pop3"
+	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/pulsar"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/postgresql"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/rdp"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/redis"
@@ -79,6 +83,7 @@ import (
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/stun"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/sybase"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/telnet"
+	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/tftp"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/vnc"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/zookeeper"
 )
