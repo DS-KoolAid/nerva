@@ -87,6 +87,8 @@ const (
 	ProtoPinecone   = "pinecone"
 	ProtoPOP3       = "pop3"
 	ProtoPOP3S      = "pop3s"
+	ProtoPulsar     = "pulsar"
+	ProtoPulsarAdmin = "pulsar-admin"
 	ProtoPostgreSQL = "postgresql"
 	ProtoRDP        = "rdp"
 	ProtoRPC        = "rpc"
@@ -355,6 +357,14 @@ func (e Service) Metadata() Metadata {
 		var p ServicePOP3S
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoPulsar:
+		var p ServicePulsar
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoPulsarAdmin:
+		var p ServicePulsarAdmin
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoSNPP:
 		var p ServiceSNPP
 		_ = json.Unmarshal(e.Raw, &p)
@@ -543,6 +553,19 @@ type ServicePOP3S struct {
 }
 
 func (e ServicePOP3S) Type() string { return ProtoPOP3S }
+
+type ServicePulsar struct {
+	ProtocolVersion int      `json:"protocolVersion,omitempty"`
+	CPEs            []string `json:"cpes,omitempty"`
+}
+
+func (e ServicePulsar) Type() string { return ProtoPulsar }
+
+type ServicePulsarAdmin struct {
+	Clusters []string `json:"clusters,omitempty"`
+}
+
+func (e ServicePulsarAdmin) Type() string { return ProtoPulsarAdmin }
 
 type ServiceSNMP struct{}
 
