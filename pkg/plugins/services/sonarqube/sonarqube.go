@@ -272,7 +272,7 @@ func buildSonarQubeCPE(version string) string {
 
 func (p *SonarQubePlugin) Run(conn net.Conn, timeout time.Duration, target plugins.Target) (*plugins.Service, error) {
 	client := createHTTPClient(conn, timeout)
-	baseURL := fmt.Sprintf("http://%s:%d", target.Host, target.Address.Port())
+	baseURL := fmt.Sprintf("http://%s", conn.RemoteAddr().String())
 
 	// Phase 1: Primary detection via /api/system/status
 	version, status, detected, err := detectViaSystemStatus(client, baseURL)
