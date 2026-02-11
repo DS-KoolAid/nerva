@@ -58,6 +58,7 @@ const (
 	ProtoHTTPS      = "https"
 	ProtoHTTP2      = "http2"
 	ProtoH323       = "h323"
+	ProtoIAX2       = "iax2"
 	ProtoIMAP       = "imap"
 	ProtoIMAPS      = "imaps"
 	ProtoInfluxDB   = "influxdb"
@@ -325,6 +326,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoInfluxDB:
 		var p ServiceInfluxDB
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoIAX2:
+		var p ServiceIAX2
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoIKEv2:
@@ -607,6 +612,12 @@ type ServiceIKEv2 struct {
 }
 
 func (e ServiceIKEv2) Type() string { return "IKEv2" }
+
+type ServiceIAX2 struct {
+	Detected bool `json:"detected"`
+}
+
+func (e ServiceIAX2) Type() string { return ProtoIAX2 }
 
 type ServiceIPSEC struct {
 	ResponderISP string `json:"responderISP"`
