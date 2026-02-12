@@ -67,6 +67,7 @@ const (
 	ProtoInfluxDB         = "influxdb"
 	ProtoIPMI             = "ipmi"
 	ProtoIPSEC            = "ipsec"
+	ProtoIUA              = "iua"
 	ProtoJDWP             = "jdwp"
 	ProtoKafka            = "kafka"
 	ProtoKubernetes       = "kubernetes"
@@ -358,6 +359,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoIKEv2:
 		var p ServiceIKEv2
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoIUA:
+		var p ServiceIUA
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoMQTT:
@@ -686,6 +691,15 @@ type ServiceIPSEC struct {
 }
 
 func (e ServiceIPSEC) Type() string { return ProtoIPSEC }
+
+type ServiceIUA struct {
+	InfoString   string `json:"infoString,omitempty"`
+	ErrorCode    uint32 `json:"errorCode,omitempty"`
+	MessageClass uint8  `json:"messageClass,omitempty"`
+	MessageType  uint8  `json:"messageType,omitempty"`
+}
+
+func (e ServiceIUA) Type() string { return ProtoIUA }
 
 type ServiceMSSQL struct {
 	CPEs []string `json:"cpes,omitempty"` // Common Platform Enumeration identifiers for vulnerability tracking
