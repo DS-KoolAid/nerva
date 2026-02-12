@@ -120,6 +120,7 @@ const (
 	ProtoTFTP             = "tftp"
 	ProtoUnknown          = "unknown"
 	ProtoVNC              = "vnc"
+  ProtoWireGuard        = "wireguard"
 	ProtoZooKeeper        = "zookeeper"
 )
 
@@ -196,6 +197,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoVNC:
 		var p ServiceVNC
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoWireGuard:
+		var p ServiceWireGuard
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoTelnet:
@@ -821,6 +826,13 @@ func (e ServicePinecone) Type() string { return ProtoPinecone }
 type ServiceOpenVPN struct{}
 
 func (e ServiceOpenVPN) Type() string { return ProtoOpenVPN }
+
+type ServiceWireGuard struct {
+	DetectionMethod string `json:"detection_method"` // "response", "differential", "heuristic"
+	Confidence      string `json:"confidence"`       // "high", "medium", "low"
+}
+
+func (e ServiceWireGuard) Type() string { return ProtoWireGuard }
 
 type ServiceOPCUA struct {
 	ApplicationName string   `json:"applicationName,omitempty"` // Server application name
