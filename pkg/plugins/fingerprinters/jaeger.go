@@ -25,9 +25,9 @@ represent a security concern due to:
   - Query capabilities that could reveal sensitive information
   - Administrative endpoints that may be exposed
 
-Detection uses a two-ponged approach:
-1. Passive: Check for Content-Type: application/json header (weak pre-filter)
-2. Active: Query /api/services endpoint (no authentication required)
+Detection uses two approaches:
+1. Passive HTML detection: Check for <title>Jaeger UI</title> in root response
+2. Active JSON detection: Query /api/services endpoint (no authentication required)
 
 # API Response Format
 
@@ -92,6 +92,7 @@ Jaeger typically runs on:
 package fingerprinters
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -122,13 +123,42 @@ func (f *JaegerFingerprinter) ProbeEndpoint() string {
 }
 
 func (f *JaegerFingerprinter) Match(resp *http.Response) bool {
-	// Check for Content-Type: application/json header
-	// This is present on all Jaeger API responses but not unique to Jaeger
-	// Use as weak pre-filter before active probe
-	return strings.Contains(resp.Header.Get("Content-Type"), "application/json")
+	// Accept both JSON (for /api/services endpoint) and HTML (for root page)
+	ct := resp.Header.Get("Content-Type")
+	return strings.Contains(ct, "application/json") || strings.Contains(ct, "text/html")
 }
 
 func (f *JaegerFingerprinter) Fingerprint(resp *http.Response, body []byte) (*FingerprintResult, error) {
+	ct := resp.Header.Get("Content-Type")
+
+	if strings.Contains(ct, "text/html") {
+		return f.fingerprintHTML(body)
+	}
+	if strings.Contains(ct, "application/json") {
+		return f.fingerprintJSON(body)
+	}
+	return nil, nil
+}
+
+// fingerprintHTML detects Jaeger from HTML root page
+func (f *JaegerFingerprinter) fingerprintHTML(body []byte) (*FingerprintResult, error) {
+	// Check for <title>Jaeger UI</title> marker (all Jaeger versions)
+	if !bytes.Contains(body, []byte("<title>Jaeger UI</title>")) {
+		return nil, nil
+	}
+
+	return &FingerprintResult{
+		Technology: "jaeger",
+		Version:    "",
+		CPEs:       []string{"cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*"},
+		Metadata: map[string]any{
+			"serviceCount": 0, // HTML root page doesn't expose service list
+		},
+	}, nil
+}
+
+// fingerprintJSON detects Jaeger from /api/services JSON response
+func (f *JaegerFingerprinter) fingerprintJSON(body []byte) (*FingerprintResult, error) {
 	// First, verify structural signature: parse to map to check all 5 fields exist
 	var rawMap map[string]json.RawMessage
 	if err := json.Unmarshal(body, &rawMap); err != nil {

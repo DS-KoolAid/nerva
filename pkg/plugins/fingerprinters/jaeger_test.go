@@ -16,6 +16,7 @@ package fingerprinters
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,9 +50,14 @@ func TestJaegerFingerprinter_Match(t *testing.T) {
 			want:        true,
 		},
 		{
-			name:        "Content-Type: text/html returns false",
+			name:        "Content-Type: text/html returns true",
 			contentType: "text/html",
-			want:        false,
+			want:        true,
+		},
+		{
+			name:        "Content-Type: text/html; charset=utf-8 returns true",
+			contentType: "text/html; charset=utf-8",
+			want:        true,
 		},
 		{
 			name:        "No Content-Type header returns false",
@@ -228,6 +234,42 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 			wantFirstService:   "",
 			wantServicesLength: 0,
 		},
+		{
+			name: "Jaeger v2 root HTML with title tag",
+			body: `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Jaeger UI</title>
+  <base href="/">
+</head>
+<body>
+  <div id="jaeger-ui-root"></div>
+</body>
+</html>`,
+			wantServiceCount:   0,
+			wantTotalPresent:   false,
+			wantTotal:          0,
+			wantLimitPresent:   false,
+			wantLimit:          0,
+			wantOffsetPresent:  false,
+			wantOffset:         0,
+			wantFirstService:   "",
+			wantServicesLength: 0,
+		},
+		{
+			name:               "Jaeger v1 root HTML (minified)",
+			body:               `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Jaeger UI</title><base href="/"></head><body><div id="jaeger-ui-root"></div></body></html>`,
+			wantServiceCount:   0,
+			wantTotalPresent:   false,
+			wantTotal:          0,
+			wantLimitPresent:   false,
+			wantLimit:          0,
+			wantOffsetPresent:  false,
+			wantOffset:         0,
+			wantFirstService:   "",
+			wantServicesLength: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -235,6 +277,12 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 			fp := &JaegerFingerprinter{}
 			resp := &http.Response{
 				Header: make(http.Header),
+			}
+			// Set Content-Type based on body content
+			if strings.Contains(tt.body, "<html") {
+				resp.Header.Set("Content-Type", "text/html; charset=utf-8")
+			} else {
+				resp.Header.Set("Content-Type", "application/json")
 			}
 
 			result, err := fp.Fingerprint(resp, []byte(tt.body))
@@ -347,6 +395,14 @@ func TestJaegerFingerprinter_Fingerprint_Invalid(t *testing.T) {
 			name: "Malformed JSON",
 			body: `{"data": ["service-a", "errors": null}`,
 		},
+		{
+			name: "HTML without Jaeger title",
+			body: `<!doctype html><html><head><title>Welcome</title></head><body>Hello</body></html>`,
+		},
+		{
+			name: "HTML with different title",
+			body: `<!doctype html><html><head><title>Grafana</title></head><body><div id="root"></div></body></html>`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -354,6 +410,12 @@ func TestJaegerFingerprinter_Fingerprint_Invalid(t *testing.T) {
 			fp := &JaegerFingerprinter{}
 			resp := &http.Response{
 				Header: make(http.Header),
+			}
+			// Set appropriate Content-Type
+			if strings.Contains(tt.body, "<html") {
+				resp.Header.Set("Content-Type", "text/html")
+			} else {
+				resp.Header.Set("Content-Type", "application/json")
 			}
 
 			result, err := fp.Fingerprint(resp, []byte(tt.body))
