@@ -16,6 +16,7 @@ package gesrtp
 
 import (
 	"encoding/binary"
+	"io"
 	"net"
 	"regexp"
 	"strings"
@@ -111,7 +112,7 @@ func (p *GESRTPPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.
 	if err != nil {
 		return nil, err
 	}
-	if len(scadaResponse) == 0 || len(scadaResponse) < 1 {
+	if len(scadaResponse) == 0 {
 		return nil, nil
 	}
 
@@ -205,16 +206,22 @@ func parseControllerTypeResponse(response []byte, conn net.Conn, timeout time.Du
 	// Check if we have payload
 	textLength := binary.LittleEndian.Uint16(response[textLengthOffset : textLengthOffset+2])
 
+	// Cap textLength to protocol maximum (controller type response payload is 40 bytes)
+	if textLength > ctrlPayloadLen {
+		// Protocol violation: textLength exceeds expected maximum
+		return serviceData
+	}
+
 	// If textLength indicates payload but we only have header, read additional bytes
 	if textLength > 0 && len(response) == headerLen {
 		// Read additional payload
 		payload := make([]byte, textLength)
-		n, err := conn.Read(payload)
-		if err != nil || n == 0 {
+		_, err := io.ReadFull(conn, payload)
+		if err != nil {
 			return serviceData // Return empty if can't read payload
 		}
 		// Combine header and payload
-		response = append(response, payload[:n]...)
+		response = append(response, payload...)
 	}
 
 	// Now check if we have full response (header + payload)
@@ -271,7 +278,7 @@ func generateCPE(plcName string) []string {
 
 	// Sanitize PLC name for CPE if it has recognizable hardware info
 	// Remove non-alphanumeric except underscores, hyphens, periods
-	reg := regexp.MustCompile(`[^a-z0-9_.-]`)
+	reg := regexp.MustCompile(`[^a-z0-9_.\-]`)
 	sanitized := reg.ReplaceAllString(strings.ToLower(plcName), "")
 
 	if sanitized != "" {
