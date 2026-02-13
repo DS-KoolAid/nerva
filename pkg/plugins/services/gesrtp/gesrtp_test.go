@@ -363,3 +363,37 @@ func TestEOFHandling(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, service)
 }
+
+func TestTextLengthUpperBoundCheck(t *testing.T) {
+	plugin := &GESRTPPlugin{}
+	// Valid init response
+	initResponse := make([]byte, 56)
+	initResponse[0] = 0x01 // Init response
+	initResponse[8] = 0x0f // Protocol ID
+
+	// Valid SCADA enable response
+	scadaResponse := make([]byte, 56)
+	scadaResponse[0] = 0x03 // Return response
+
+	// Controller type response with textLength set to 65535 (max uint16)
+	ctrlHeader := make([]byte, 56)
+	ctrlHeader[0] = 0x03 // Return response
+	// Set text_length to 65535 (LE uint16 at bytes 4-5)
+	ctrlHeader[4] = 0xFF // low byte
+	ctrlHeader[5] = 0xFF // high byte
+
+	conn := &mockConn{responses: [][]byte{initResponse, scadaResponse, ctrlHeader}}
+	target := plugins.Target{Host: "192.168.1.1"}
+
+	service, err := plugin.Run(conn, time.Second, target)
+
+	// Should still return service (basic detection succeeded)
+	assert.Nil(t, err)
+	assert.NotNil(t, service)
+	assert.Equal(t, "gesrtp", service.Protocol)
+
+	// Verify metadata is empty (textLength capped, no payload parsed)
+	metadata := service.Metadata().(plugins.ServiceGESRTP)
+	assert.Equal(t, "", metadata.PLCName)
+	assert.Equal(t, uint8(0), metadata.DeviceIndicator)
+}
