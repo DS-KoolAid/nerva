@@ -58,6 +58,7 @@ const (
 	ProtoEthernetIP       = "ethernetip"
 	ProtoFirebird         = "firebird"
 	ProtoFTP              = "ftp"
+	ProtoGESRTP           = "gesrtp"
 	ProtoH323             = "h323"
 	ProtoHARTIP           = "hartip"
 	ProtoIAX2             = "iax2"
@@ -201,6 +202,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoFTP:
 		var p ServiceFTP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoGESRTP:
+		var p ServiceGESRTP
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoH323:
@@ -783,6 +788,14 @@ type ServiceFTP struct {
 }
 
 func (e ServiceFTP) Type() string { return ProtoFTP }
+
+type ServiceGESRTP struct {
+	PLCName         string   `json:"plcName,omitempty"`
+	DeviceIndicator uint8    `json:"deviceIndicator,omitempty"`
+	CPEs            []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceGESRTP) Type() string { return ProtoGESRTP }
 
 type ServiceSMPP struct {
 	CPEs            []string `json:"cpes,omitempty"`            // Common Platform Enumeration identifiers for vulnerability tracking
