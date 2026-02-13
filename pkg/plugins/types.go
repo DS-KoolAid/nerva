@@ -57,10 +57,10 @@ const (
 	ProtoFirebird         = "firebird"
 	ProtoFTP              = "ftp"
 	ProtoH323             = "h323"
+	ProtoIAX2             = "iax2"
 	ProtoHTTP             = "http"
 	ProtoHTTP2            = "http2"
 	ProtoHTTPS            = "https"
-	ProtoIAX2             = "iax2"
 	ProtoIEC104           = "iec104"
 	ProtoIKEv2            = "ikev2"
 	ProtoIMAP             = "imap"
@@ -68,6 +68,7 @@ const (
 	ProtoInfluxDB         = "influxdb"
 	ProtoIPMI             = "ipmi"
 	ProtoIPSEC            = "ipsec"
+	ProtoIUA              = "iua"
 	ProtoJDWP             = "jdwp"
 	ProtoKafka            = "kafka"
 	ProtoKubernetes       = "kubernetes"
@@ -105,6 +106,7 @@ const (
 	ProtoRsync            = "rsync"
 	ProtoRtsp             = "rtsp"
 	ProtoS7comm           = "s7comm"
+	ProtoSCCP             = "sccp"
 	ProtoSIP              = "sip"
 	ProtoSIPS             = "sips"
 	ProtoSMB              = "smb"
@@ -119,9 +121,10 @@ const (
 	ProtoSybase           = "sybase"
 	ProtoTelnet           = "telnet"
 	ProtoTFTP             = "tftp"
-	ProtoUnknown          = "unknown"
 	ProtoVNC              = "vnc"
+  ProtoWireGuard        = "wireguard"
 	ProtoZooKeeper        = "zookeeper"
+	ProtoUnknown          = "unknown"
 )
 
 // Used as a key for maps to plugins.
@@ -197,6 +200,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoVNC:
 		var p ServiceVNC
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoWireGuard:
+		var p ServiceWireGuard
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoTelnet:
@@ -335,6 +342,10 @@ func (e Service) Metadata() Metadata {
 		var p ServiceS7comm
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoSCCP:
+		var p ServiceSCCP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoIMAPS:
 		var p ServiceIMAPS
 		_ = json.Unmarshal(e.Raw, &p)
@@ -349,6 +360,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoIKEv2:
 		var p ServiceIKEv2
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoIUA:
+		var p ServiceIUA
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoMQTT:
@@ -682,6 +697,15 @@ type ServiceIPSEC struct {
 
 func (e ServiceIPSEC) Type() string { return ProtoIPSEC }
 
+type ServiceIUA struct {
+	InfoString   string `json:"infoString,omitempty"`
+	ErrorCode    uint32 `json:"errorCode,omitempty"`
+	MessageClass uint8  `json:"messageClass,omitempty"`
+	MessageType  uint8  `json:"messageType,omitempty"`
+}
+
+func (e ServiceIUA) Type() string { return ProtoIUA }
+
 type ServiceMSSQL struct {
 	CPEs []string `json:"cpes,omitempty"` // Common Platform Enumeration identifiers for vulnerability tracking
 }
@@ -826,6 +850,13 @@ func (e ServicePinecone) Type() string { return ProtoPinecone }
 type ServiceOpenVPN struct{}
 
 func (e ServiceOpenVPN) Type() string { return ProtoOpenVPN }
+
+type ServiceWireGuard struct {
+	DetectionMethod string `json:"detection_method"` // "response", "differential", "heuristic"
+	Confidence      string `json:"confidence"`       // "high", "medium", "low"
+}
+
+func (e ServiceWireGuard) Type() string { return ProtoWireGuard }
 
 type ServiceOPCUA struct {
 	ApplicationName string   `json:"applicationName,omitempty"` // Server application name
@@ -1109,3 +1140,12 @@ type ServiceBGP struct {
 }
 
 func (e ServiceBGP) Type() string { return ProtoBGP }
+
+type ServiceSCCP struct {
+	DeviceType      string `json:"deviceType,omitempty"`
+	ProtocolVersion string `json:"protocolVersion,omitempty"`
+	MaxStreams      int    `json:"maxStreams,omitempty"`
+	DeviceName      string `json:"deviceName,omitempty"`
+}
+
+func (e ServiceSCCP) Type() string { return ProtoSCCP }
