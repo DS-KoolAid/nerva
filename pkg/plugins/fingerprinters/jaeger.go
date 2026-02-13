@@ -26,7 +26,7 @@ represent a security concern due to:
   - Administrative endpoints that may be exposed
 
 Detection uses two approaches:
-1. Passive HTML detection: Check for <title>Jaeger UI</title> in root response
+1. Passive HTML detection: Check for <title>Jaeger UI</title> in root response and extract version from embedded JAEGER_VERSION JSON
 2. Active JSON detection: Query /api/services endpoint (no authentication required)
 
 # API Response Format
@@ -94,7 +94,9 @@ package fingerprinters
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -110,6 +112,20 @@ type jaegerServicesResponse struct {
 	Total  *int            `json:"total"`  // Pointer to distinguish missing vs 0
 }
 
+// jaegerHTMLVersion represents the JAEGER_VERSION JSON embedded in HTML
+type jaegerHTMLVersion struct {
+	GitCommit  string `json:"gitCommit"`
+	GitVersion string `json:"gitVersion"`
+	BuildDate  string `json:"buildDate"`
+}
+
+// jaegerVersionRegex validates Jaeger version format and prevents CPE injection
+// Accepts: 1.76.0, 1.35.0, 2.0.0-rc.1, etc.
+var jaegerVersionRegex = regexp.MustCompile(`^\d+\.\d+\.\d+(-[a-zA-Z0-9._-]+)?$`)
+
+// jaegerVersionJSONRegex extracts the JAEGER_VERSION JSON object from HTML
+var jaegerVersionJSONRegex = regexp.MustCompile(`JAEGER_VERSION\s*=\s*(\{[^}]+\})`)
+
 func init() {
 	Register(&JaegerFingerprinter{})
 }
@@ -120,6 +136,13 @@ func (f *JaegerFingerprinter) Name() string {
 
 func (f *JaegerFingerprinter) ProbeEndpoint() string {
 	return "/api/services"
+}
+
+func buildJaegerCPE(version string) string {
+	if version == "" {
+		version = "*"
+	}
+	return fmt.Sprintf("cpe:2.3:a:jaegertracing:jaeger:%s:*:*:*:*:*:*:*", version)
 }
 
 func (f *JaegerFingerprinter) Match(resp *http.Response) bool {
@@ -147,13 +170,34 @@ func (f *JaegerFingerprinter) fingerprintHTML(body []byte) (*FingerprintResult, 
 		return nil, nil
 	}
 
+	version := ""
+	metadata := map[string]any{
+		"serviceCount": 0, // HTML root page doesn't expose service list
+	}
+
+	// Try to extract version from embedded JAEGER_VERSION JSON
+	if matches := jaegerVersionJSONRegex.FindSubmatch(body); len(matches) > 1 {
+		var ver jaegerHTMLVersion
+		if err := json.Unmarshal(matches[1], &ver); err == nil && ver.GitVersion != "" {
+			// Strip "v" prefix (e.g., "v1.76.0" -> "1.76.0")
+			v := strings.TrimPrefix(ver.GitVersion, "v")
+			if jaegerVersionRegex.MatchString(v) {
+				version = v
+			}
+			if ver.GitCommit != "" {
+				metadata["gitCommit"] = ver.GitCommit
+			}
+			if ver.BuildDate != "" {
+				metadata["buildDate"] = ver.BuildDate
+			}
+		}
+	}
+
 	return &FingerprintResult{
 		Technology: "jaeger",
-		Version:    "",
-		CPEs:       []string{"cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*"},
-		Metadata: map[string]any{
-			"serviceCount": 0, // HTML root page doesn't expose service list
-		},
+		Version:    version,
+		CPEs:       []string{buildJaegerCPE(version)},
+		Metadata:   metadata,
 	}, nil
 }
 
@@ -209,7 +253,7 @@ func (f *JaegerFingerprinter) fingerprintJSON(body []byte) (*FingerprintResult, 
 	return &FingerprintResult{
 		Technology: "jaeger",
 		Version:    "", // Jaeger doesn't expose version via /api/services
-		CPEs:       []string{"cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*"},
+		CPEs:       []string{buildJaegerCPE("")},
 		Metadata:   metadata,
 	}, nil
 }

@@ -86,6 +86,8 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 	tests := []struct {
 		name               string
 		body               string
+		wantVersion        string
+		wantCPE            string
 		wantServiceCount   int
 		wantTotalPresent   bool
 		wantTotal          int
@@ -105,6 +107,8 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 				"offset": 0,
 				"total": 4
 			}`,
+			wantVersion:        "",
+			wantCPE:            "cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*",
 			wantServiceCount:   4,
 			wantTotalPresent:   true,
 			wantTotal:          4,
@@ -124,6 +128,8 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 				"offset": 0,
 				"total": 1
 			}`,
+			wantVersion:        "",
+			wantCPE:            "cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*",
 			wantServiceCount:   1,
 			wantTotalPresent:   true,
 			wantTotal:          1,
@@ -148,6 +154,8 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 				"offset": 0,
 				"total": 12
 			}`,
+			wantVersion:        "",
+			wantCPE:            "cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*",
 			wantServiceCount:   12,
 			wantTotalPresent:   true,
 			wantTotal:          12,
@@ -167,6 +175,8 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 				"offset": 0,
 				"total": 3
 			}`,
+			wantVersion:        "",
+			wantCPE:            "cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*",
 			wantServiceCount:   3,
 			wantTotalPresent:   true,
 			wantTotal:          3,
@@ -186,6 +196,8 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 				"offset": 3,
 				"total": 10
 			}`,
+			wantVersion:        "",
+			wantCPE:            "cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*",
 			wantServiceCount:   3,
 			wantTotalPresent:   true,
 			wantTotal:          10,
@@ -205,6 +217,8 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 				"offset": 0,
 				"total": 0
 			}`,
+			wantVersion:        "",
+			wantCPE:            "cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*",
 			wantServiceCount:   0,
 			wantTotalPresent:   false, // total is 0, shouldn't be in metadata
 			wantTotal:          0,
@@ -224,6 +238,8 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 				"offset": 0,
 				"total": 0
 			}`,
+			wantVersion:        "",
+			wantCPE:            "cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*",
 			wantServiceCount:   0,
 			wantTotalPresent:   false, // total is 0, shouldn't be in metadata
 			wantTotal:          0,
@@ -235,18 +251,27 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 			wantServicesLength: 0,
 		},
 		{
-			name: "Jaeger v2 root HTML with title tag",
+			name: "Jaeger v2 root HTML with title tag and version",
 			body: `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <title>Jaeger UI</title>
   <base href="/">
+  <script>
+    function getJaegerVersion() {
+      const DEFAULT_VERSION = {'gitCommit':'', 'gitVersion':'', 'buildDate':''};
+      const JAEGER_VERSION = {"gitCommit":"63b27e1810a710ac54dc4522da0538e540bdc545","gitVersion":"v1.76.0","buildDate":"2025-12-03T16:07:08Z"};
+      return JAEGER_VERSION;
+    }
+  </script>
 </head>
 <body>
   <div id="jaeger-ui-root"></div>
 </body>
 </html>`,
+			wantVersion:        "1.76.0",
+			wantCPE:            "cpe:2.3:a:jaegertracing:jaeger:1.76.0:*:*:*:*:*:*:*",
 			wantServiceCount:   0,
 			wantTotalPresent:   false,
 			wantTotal:          0,
@@ -258,8 +283,85 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 			wantServicesLength: 0,
 		},
 		{
-			name:               "Jaeger v1 root HTML (minified)",
-			body:               `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Jaeger UI</title><base href="/"></head><body><div id="jaeger-ui-root"></div></body></html>`,
+			name:               "Jaeger v1 root HTML (minified) with version",
+			body:               `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Jaeger UI</title><base href="/"><script>function getJaegerVersion(){const DEFAULT_VERSION={'gitCommit':'','gitVersion':'','buildDate':''};const JAEGER_VERSION={"gitCommit":"abc123","gitVersion":"v1.35.0","buildDate":"2024-01-15T10:30:00Z"};return JAEGER_VERSION;}</script></head><body><div id="jaeger-ui-root"></div></body></html>`,
+			wantVersion:        "1.35.0",
+			wantCPE:            "cpe:2.3:a:jaegertracing:jaeger:1.35.0:*:*:*:*:*:*:*",
+			wantServiceCount:   0,
+			wantTotalPresent:   false,
+			wantTotal:          0,
+			wantLimitPresent:   false,
+			wantLimit:          0,
+			wantOffsetPresent:  false,
+			wantOffset:         0,
+			wantFirstService:   "",
+			wantServicesLength: 0,
+		},
+		{
+			name: "HTML with version but no gitCommit",
+			body: `<!doctype html>
+<html lang="en">
+<head>
+  <title>Jaeger UI</title>
+  <script>
+    function getJaegerVersion() {
+      const JAEGER_VERSION = {"gitCommit":"","gitVersion":"v2.0.0","buildDate":"2025-01-10T12:00:00Z"};
+      return JAEGER_VERSION;
+    }
+  </script>
+</head>
+<body><div id="jaeger-ui-root"></div></body>
+</html>`,
+			wantVersion:        "2.0.0",
+			wantCPE:            "cpe:2.3:a:jaegertracing:jaeger:2.0.0:*:*:*:*:*:*:*",
+			wantServiceCount:   0,
+			wantTotalPresent:   false,
+			wantTotal:          0,
+			wantLimitPresent:   false,
+			wantLimit:          0,
+			wantOffsetPresent:  false,
+			wantOffset:         0,
+			wantFirstService:   "",
+			wantServicesLength: 0,
+		},
+		{
+			name: "HTML without JAEGER_VERSION function",
+			body: `<!doctype html>
+<html lang="en">
+<head>
+  <title>Jaeger UI</title>
+</head>
+<body><div id="jaeger-ui-root"></div></body>
+</html>`,
+			wantVersion:        "",
+			wantCPE:            "cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*",
+			wantServiceCount:   0,
+			wantTotalPresent:   false,
+			wantTotal:          0,
+			wantLimitPresent:   false,
+			wantLimit:          0,
+			wantOffsetPresent:  false,
+			wantOffset:         0,
+			wantFirstService:   "",
+			wantServicesLength: 0,
+		},
+		{
+			name: "HTML with malicious version (CPE injection attempt)",
+			body: `<!doctype html>
+<html lang="en">
+<head>
+  <title>Jaeger UI</title>
+  <script>
+    function getJaegerVersion() {
+      const JAEGER_VERSION = {"gitCommit":"abc","gitVersion":"v1.0.0:*:*:*:*:*:*:*","buildDate":"2025-01-01T00:00:00Z"};
+      return JAEGER_VERSION;
+    }
+  </script>
+</head>
+<body><div id="jaeger-ui-root"></div></body>
+</html>`,
+			wantVersion:        "",
+			wantCPE:            "cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*",
 			wantServiceCount:   0,
 			wantTotalPresent:   false,
 			wantTotal:          0,
@@ -290,7 +392,7 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 			require.NotNil(t, result)
 
 			assert.Equal(t, "jaeger", result.Technology)
-			assert.Equal(t, "", result.Version) // Jaeger doesn't expose version via /api/services
+			assert.Equal(t, tt.wantVersion, result.Version)
 
 			// Check metadata - serviceCount (always present)
 			serviceCount, exists := result.Metadata["serviceCount"]
@@ -340,8 +442,7 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 
 			// Check CPE
 			require.NotEmpty(t, result.CPEs)
-			expectedCPE := "cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*"
-			assert.Contains(t, result.CPEs, expectedCPE)
+			assert.Contains(t, result.CPEs, tt.wantCPE)
 		})
 	}
 }
@@ -425,6 +526,32 @@ func TestJaegerFingerprinter_Fingerprint_Invalid(t *testing.T) {
 	}
 }
 
+func TestBuildJaegerCPE(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+		want    string
+	}{
+		{
+			name:    "With version",
+			version: "1.76.0",
+			want:    "cpe:2.3:a:jaegertracing:jaeger:1.76.0:*:*:*:*:*:*:*",
+		},
+		{
+			name:    "Empty version",
+			version: "",
+			want:    "cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildJaegerCPE(tt.version)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestJaegerFingerprinter_Integration(t *testing.T) {
 	// Register the fingerprinter
 	fp := &JaegerFingerprinter{}
@@ -451,7 +578,8 @@ func TestJaegerFingerprinter_Integration(t *testing.T) {
 	for _, result := range results {
 		if result.Technology == "jaeger" {
 			found = true
-			assert.Equal(t, "", result.Version) // No version exposed
+			assert.Equal(t, "", result.Version) // No version exposed via JSON endpoint
+			assert.Contains(t, result.CPEs, buildJaegerCPE(""))
 			serviceCount, exists := result.Metadata["serviceCount"]
 			assert.True(t, exists)
 			assert.Equal(t, 4, serviceCount)
