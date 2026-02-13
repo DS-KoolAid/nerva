@@ -1,0 +1,358 @@
+// Copyright 2022 Praetorian Security, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package fingerprinters
+
+import (
+	"net/http"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestJaegerFingerprinter_Name(t *testing.T) {
+	fp := &JaegerFingerprinter{}
+	assert.Equal(t, "jaeger", fp.Name())
+}
+
+func TestJaegerFingerprinter_ProbeEndpoint(t *testing.T) {
+	fp := &JaegerFingerprinter{}
+	assert.Equal(t, "/api/services", fp.ProbeEndpoint())
+}
+
+func TestJaegerFingerprinter_Match(t *testing.T) {
+	tests := []struct {
+		name        string
+		contentType string
+		want        bool
+	}{
+		{
+			name:        "Content-Type: application/json returns true",
+			contentType: "application/json",
+			want:        true,
+		},
+		{
+			name:        "Content-Type: application/json; charset=utf-8 returns true",
+			contentType: "application/json; charset=utf-8",
+			want:        true,
+		},
+		{
+			name:        "Content-Type: text/html returns false",
+			contentType: "text/html",
+			want:        false,
+		},
+		{
+			name:        "No Content-Type header returns false",
+			contentType: "",
+			want:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fp := &JaegerFingerprinter{}
+			resp := &http.Response{
+				Header: make(http.Header),
+			}
+			if tt.contentType != "" {
+				resp.Header.Set("Content-Type", tt.contentType)
+			}
+
+			got := fp.Match(resp)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
+	tests := []struct {
+		name               string
+		body               string
+		wantServiceCount   int
+		wantTotalPresent   bool
+		wantTotal          int
+		wantLimitPresent   bool
+		wantLimit          int
+		wantOffsetPresent  bool
+		wantOffset         int
+		wantFirstService   string
+		wantServicesLength int
+	}{
+		{
+			name: "Full response with multiple services, total, limit, offset",
+			body: `{
+				"data": ["service-a", "service-b", "checkout", "frontend"],
+				"errors": null,
+				"limit": 100,
+				"offset": 0,
+				"total": 4
+			}`,
+			wantServiceCount:   4,
+			wantTotalPresent:   true,
+			wantTotal:          4,
+			wantLimitPresent:   true,
+			wantLimit:          100,
+			wantOffsetPresent:  false, // offset is 0, shouldn't be in metadata
+			wantOffset:         0,
+			wantFirstService:   "service-a",
+			wantServicesLength: 4,
+		},
+		{
+			name: "Minimal response with just data and one service",
+			body: `{
+				"data": ["api-gateway"],
+				"errors": null,
+				"limit": 0,
+				"offset": 0,
+				"total": 1
+			}`,
+			wantServiceCount:   1,
+			wantTotalPresent:   true,
+			wantTotal:          1,
+			wantLimitPresent:   false, // limit is 0, shouldn't be in metadata
+			wantLimit:          0,
+			wantOffsetPresent:  false, // offset is 0, shouldn't be in metadata
+			wantOffset:         0,
+			wantFirstService:   "api-gateway",
+			wantServicesLength: 1,
+		},
+		{
+			name: "Response with many services (10+)",
+			body: `{
+				"data": [
+					"user-service", "auth-service", "payment-service",
+					"notification-service", "analytics-service", "logging-service",
+					"monitoring-service", "api-gateway", "frontend", "backend",
+					"database-service", "cache-service"
+				],
+				"errors": null,
+				"limit": 50,
+				"offset": 0,
+				"total": 12
+			}`,
+			wantServiceCount:   12,
+			wantTotalPresent:   true,
+			wantTotal:          12,
+			wantLimitPresent:   true,
+			wantLimit:          50,
+			wantOffsetPresent:  false,
+			wantOffset:         0,
+			wantFirstService:   "user-service",
+			wantServicesLength: 12,
+		},
+		{
+			name: "Response with total > 0 but limit = 0",
+			body: `{
+				"data": ["service-x", "service-y", "service-z"],
+				"errors": null,
+				"limit": 0,
+				"offset": 0,
+				"total": 3
+			}`,
+			wantServiceCount:   3,
+			wantTotalPresent:   true,
+			wantTotal:          3,
+			wantLimitPresent:   false, // limit is 0
+			wantLimit:          0,
+			wantOffsetPresent:  false, // offset is 0
+			wantOffset:         0,
+			wantFirstService:   "service-x",
+			wantServicesLength: 3,
+		},
+		{
+			name: "Response with pagination (offset > 0)",
+			body: `{
+				"data": ["service-d", "service-e", "service-f"],
+				"errors": null,
+				"limit": 3,
+				"offset": 3,
+				"total": 10
+			}`,
+			wantServiceCount:   3,
+			wantTotalPresent:   true,
+			wantTotal:          10,
+			wantLimitPresent:   true,
+			wantLimit:          3,
+			wantOffsetPresent:  true,
+			wantOffset:         3,
+			wantFirstService:   "service-d",
+			wantServicesLength: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fp := &JaegerFingerprinter{}
+			resp := &http.Response{
+				Header: make(http.Header),
+			}
+
+			result, err := fp.Fingerprint(resp, []byte(tt.body))
+			require.NoError(t, err)
+			require.NotNil(t, result)
+
+			assert.Equal(t, "jaeger", result.Technology)
+			assert.Equal(t, "", result.Version) // Jaeger doesn't expose version via /api/services
+
+			// Check metadata - serviceCount
+			serviceCount, exists := result.Metadata["serviceCount"]
+			require.True(t, exists, "Expected serviceCount in metadata")
+			assert.Equal(t, tt.wantServiceCount, serviceCount)
+
+			// Check metadata - services array
+			services, exists := result.Metadata["services"]
+			require.True(t, exists, "Expected services in metadata")
+			serviceSlice, ok := services.([]string)
+			require.True(t, ok, "Expected services to be []string")
+			assert.Len(t, serviceSlice, tt.wantServicesLength)
+			if tt.wantServicesLength > 0 {
+				assert.Equal(t, tt.wantFirstService, serviceSlice[0])
+			}
+
+			// Check metadata - total
+			if tt.wantTotalPresent {
+				total, exists := result.Metadata["total"]
+				assert.True(t, exists, "Expected total in metadata")
+				assert.Equal(t, tt.wantTotal, total)
+			}
+
+			// Check metadata - limit
+			if tt.wantLimitPresent {
+				limit, exists := result.Metadata["limit"]
+				assert.True(t, exists, "Expected limit in metadata")
+				assert.Equal(t, tt.wantLimit, limit)
+			} else {
+				_, exists := result.Metadata["limit"]
+				assert.False(t, exists, "Did not expect limit in metadata when limit=0")
+			}
+
+			// Check metadata - offset
+			if tt.wantOffsetPresent {
+				offset, exists := result.Metadata["offset"]
+				assert.True(t, exists, "Expected offset in metadata")
+				assert.Equal(t, tt.wantOffset, offset)
+			} else {
+				_, exists := result.Metadata["offset"]
+				assert.False(t, exists, "Did not expect offset in metadata when offset=0")
+			}
+
+			// Check CPE
+			require.NotEmpty(t, result.CPEs)
+			expectedCPE := "cpe:2.3:a:jaegertracing:jaeger:*:*:*:*:*:*:*:*"
+			assert.Contains(t, result.CPEs, expectedCPE)
+		})
+	}
+}
+
+func TestJaegerFingerprinter_Fingerprint_Invalid(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{
+			name: "Non-JSON body",
+			body: "OK",
+		},
+		{
+			name: "JSON without data field",
+			body: `{"errors": null}`,
+		},
+		{
+			name: "JSON with empty data array",
+			body: `{"data": [], "errors": null}`,
+		},
+		{
+			name: "JSON with null data",
+			body: `{"data": null, "errors": null}`,
+		},
+		{
+			name: "Empty JSON",
+			body: `{}`,
+		},
+		{
+			name: "Empty string",
+			body: "",
+		},
+		{
+			name: "Different JSON structure (e.g., not Jaeger format)",
+			body: `{"services": ["a"], "status": "ok"}`,
+		},
+		{
+			name: "Random JSON object (prevent false positives)",
+			body: `{"foo": "bar", "baz": 123, "nested": {"key": "value"}}`,
+		},
+		{
+			name: "JSON with data but wrong type (not array)",
+			body: `{"data": "service-a", "errors": null}`,
+		},
+		{
+			name: "JSON with data array but non-string elements",
+			body: `{"data": [123, 456], "errors": null}`,
+		},
+		{
+			name: "Malformed JSON",
+			body: `{"data": ["service-a", "errors": null}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fp := &JaegerFingerprinter{}
+			resp := &http.Response{
+				Header: make(http.Header),
+			}
+
+			result, err := fp.Fingerprint(resp, []byte(tt.body))
+			require.NoError(t, err)
+			assert.Nil(t, result)
+		})
+	}
+}
+
+func TestJaegerFingerprinter_Integration(t *testing.T) {
+	// Register the fingerprinter
+	fp := &JaegerFingerprinter{}
+	Register(fp)
+
+	// Create a valid Jaeger /api/services response
+	body := []byte(`{
+		"data": ["service-a", "service-b", "checkout", "frontend"],
+		"errors": null,
+		"limit": 0,
+		"offset": 0,
+		"total": 4
+	}`)
+
+	resp := &http.Response{
+		Header: make(http.Header),
+	}
+	resp.Header.Set("Content-Type", "application/json")
+
+	results := RunFingerprinters(resp, body)
+
+	// Should find at least the Jaeger fingerprinter
+	found := false
+	for _, result := range results {
+		if result.Technology == "jaeger" {
+			found = true
+			assert.Equal(t, "", result.Version) // No version exposed
+			serviceCount, exists := result.Metadata["serviceCount"]
+			assert.True(t, exists)
+			assert.Equal(t, 4, serviceCount)
+		}
+	}
+
+	assert.True(t, found, "JaegerFingerprinter not found in results")
+}
