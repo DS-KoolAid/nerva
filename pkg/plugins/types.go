@@ -52,6 +52,7 @@ const (
 	ProtoDNS              = "dns"
 	ProtoDocker           = "docker"
 	ProtoEcho             = "echo"
+	ProtoEtherCAT         = "ethercat"
 	ProtoElasticsearch    = "elasticsearch"
 	ProtoEtcd             = "etcd"
 	ProtoEthernetIP       = "ethernetip"
@@ -184,6 +185,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoEtcd:
 		var p ServiceEtcd
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoEtherCAT:
+		var p ServiceEtherCAT
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoEthernetIP:
@@ -1100,6 +1105,13 @@ func (e ServiceEtcd) Type() string { return ProtoEtcd }
 type ServiceEcho struct{}
 
 func (e ServiceEcho) Type() string { return ProtoEcho }
+
+type ServiceEtherCAT struct {
+	WorkingCounter uint16 `json:"workingCounter"` // Number of slaves that processed the request
+	DatagramCount  int    `json:"datagramCount"`  // Number of datagrams in response
+}
+
+func (e ServiceEtherCAT) Type() string { return ProtoEtherCAT }
 
 type ServiceFirebird struct {
 	ProtocolVersion int32    `json:"protocol_version,omitempty"`
