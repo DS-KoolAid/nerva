@@ -481,7 +481,7 @@ func TestWinRMPlugin_PortPriority(t *testing.T) {
 // TestWinRMPlugin_Priority tests priority for WinRMPlugin
 func TestWinRMPlugin_Priority(t *testing.T) {
 	plugin := &WinRMPlugin{}
-	assert.Equal(t, 100, plugin.Priority())
+	assert.Equal(t, -1, plugin.Priority())
 }
 
 // TestWinRMTLSPlugin_Name tests the Name method for WinRMTLSPlugin
@@ -538,7 +538,7 @@ func TestWinRMTLSPlugin_PortPriority(t *testing.T) {
 // TestWinRMTLSPlugin_Priority tests priority for WinRMTLSPlugin
 func TestWinRMTLSPlugin_Priority(t *testing.T) {
 	plugin := &WinRMTLSPlugin{}
-	assert.Equal(t, 101, plugin.Priority())
+	assert.Equal(t, -1, plugin.Priority())
 }
 
 // TestPluginsDifferentPorts verifies plain and TLS plugins use different ports
@@ -559,8 +559,8 @@ func TestPluginsDifferentPorts(t *testing.T) {
 	assert.Equal(t, plugins.TCPTLS, tlsPlugin.Type(), "TLS plugin should use TCPTLS transport")
 
 	// Verify different priorities
-	assert.Equal(t, 100, plainPlugin.Priority(), "Plain plugin should have priority 100")
-	assert.Equal(t, 101, tlsPlugin.Priority(), "TLS plugin should have priority 101")
+	assert.Equal(t, -1, plainPlugin.Priority(), "Plain plugin should have priority -1")
+	assert.Equal(t, -1, tlsPlugin.Priority(), "TLS plugin should have priority -1")
 }
 
 // TestDetectWinRM_IdentifyResponse tests detectWinRM with valid IdentifyResponse

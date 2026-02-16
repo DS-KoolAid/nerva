@@ -367,7 +367,7 @@ func (p *WinRMPlugin) Type() plugins.Protocol {
 }
 
 func (p *WinRMPlugin) Priority() int {
-	return 100
+	return -1
 }
 
 // WinRMTLSPlugin methods (TCPTLS - port 5986)
@@ -389,5 +389,5 @@ func (p *WinRMTLSPlugin) Type() plugins.Protocol {
 }
 
 func (p *WinRMTLSPlugin) Priority() int {
-	return 101
+	return -1
 }
