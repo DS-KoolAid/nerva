@@ -44,6 +44,7 @@ const (
 	ProtoCassandra        = "cassandra"
 	ProtoChromaDB         = "chromadb"
 	ProtoCODESYS          = "codesys"
+	ProtoCrimsonV3        = "crimsonv3"
 	ProtoCouchDB          = "couchdb"
 	ProtoDB2              = "db2"
 	ProtoDHCP             = "dhcp"
@@ -58,6 +59,8 @@ const (
 	ProtoEthernetIP       = "ethernetip"
 	ProtoFirebird         = "firebird"
 	ProtoFTP              = "ftp"
+	ProtoGESRTP           = "gesrtp"
+	ProtoGTPPrime         = "gtpprime"
 	ProtoH323             = "h323"
 	ProtoHARTIP           = "hartip"
 	ProtoIAX2             = "iax2"
@@ -74,13 +77,16 @@ const (
 	ProtoIUA              = "iua"
 	ProtoJDWP             = "jdwp"
 	ProtoKafka            = "kafka"
+	ProtoKerberos         = "kerberos"
 	ProtoKNXIP            = "knxip"
 	ProtoKubernetes       = "kubernetes"
 	ProtoL2TP             = "l2tp"
 	ProtoLDAP             = "ldap"
 	ProtoLDAPS            = "ldaps"
 	ProtoM3UA             = "m3ua"
+	ProtoMegaco           = "megaco"
 	ProtoMemcached        = "memcached"
+	ProtoMelsecQ          = "melsec-q"
 	ProtoMilvus           = "milvus"
 	ProtoMilvusMetrics    = "milvus-metrics"
 	ProtoModbus           = "modbus"
@@ -97,7 +103,9 @@ const (
 	ProtoOPCUA            = "opcua"
 	ProtoOpenVPN          = "openvpn"
 	ProtoOracle           = "oracle"
+	ProtoPCOM             = "pcom"
 	ProtoPinecone         = "pinecone"
+	ProtoPCWorx           = "pcworx"
 	ProtoPOP3             = "pop3"
 	ProtoPOP3S            = "pop3s"
 	ProtoPostgreSQL       = "postgresql"
@@ -126,6 +134,7 @@ const (
 	ProtoSybase           = "sybase"
 	ProtoTelnet           = "telnet"
 	ProtoTFTP             = "tftp"
+	ProtoTURN             = "turn"
 	ProtoVNC              = "vnc"
 	ProtoWireGuard        = "wireguard"
 	ProtoZabbixAgent      = "zabbix-agent"
@@ -154,6 +163,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoCouchDB:
 		var p ServiceCouchDB
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoCrimsonV3:
+		var p ServiceCrimsonV3
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoDiameter:
@@ -202,6 +215,14 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoFTP:
 		var p ServiceFTP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoGESRTP:
+		var p ServiceGESRTP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoGTPPrime:
+		var p ServiceGTPPrime
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoH323:
@@ -272,6 +293,10 @@ func (e Service) Metadata() Metadata {
 		var p ServiceKafka
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoKerberos:
+		var p ServiceKerberos
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoKNXIP:
 		var p ServiceKNXIP
 		_ = json.Unmarshal(e.Raw, &p)
@@ -292,8 +317,16 @@ func (e Service) Metadata() Metadata {
 		var p ServiceOPCUA
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoPCOM:
+		var p ServicePCOM
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoPinecone:
 		var p ServicePinecone
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoPCWorx:
+		var p ServicePCWorx
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoMySQL:
@@ -396,6 +429,14 @@ func (e Service) Metadata() Metadata {
 		var p ServiceMQTT
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoMelsecQ:
+		var p ServiceMelsecQ
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoMegaco:
+		var p ServiceMegaco
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoMemcached:
 		var p ServiceMemcached
 		_ = json.Unmarshal(e.Raw, &p)
@@ -434,6 +475,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoTFTP:
 		var p ServiceTFTP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoTURN:
+		var p ServiceTURN
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoSIP:
@@ -768,6 +813,14 @@ type ServiceTFTP struct {
 
 func (e ServiceTFTP) Type() string { return ProtoTFTP }
 
+type ServiceTURN struct {
+	Software string `json:"software,omitempty"`
+	Realm    string `json:"realm,omitempty"`
+	Nonce    string `json:"nonce,omitempty"`
+}
+
+func (e ServiceTURN) Type() string { return ProtoTURN }
+
 type ServiceRedis struct {
 	AuthRequired bool     `json:"authRequired:"`
 	CPEs         []string `json:"cpes,omitempty"`
@@ -781,6 +834,10 @@ type ServiceElasticsearch struct {
 
 func (e ServiceElasticsearch) Type() string { return ProtoElasticsearch }
 
+type ServiceGTPPrime struct{}
+
+func (e ServiceGTPPrime) Type() string { return ProtoGTPPrime }
+
 type ServiceFTP struct {
 	Banner     string   `json:"banner"`
 	Confidence string   `json:"confidence,omitempty"` // Detection confidence: "high", "medium", or "low"
@@ -788,6 +845,14 @@ type ServiceFTP struct {
 }
 
 func (e ServiceFTP) Type() string { return ProtoFTP }
+
+type ServiceGESRTP struct {
+	PLCName         string   `json:"plcName,omitempty"`
+	DeviceIndicator uint8    `json:"deviceIndicator,omitempty"`
+	CPEs            []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceGESRTP) Type() string { return ProtoGESRTP }
 
 type ServiceSMPP struct {
 	CPEs            []string `json:"cpes,omitempty"`            // Common Platform Enumeration identifiers for vulnerability tracking
@@ -862,6 +927,14 @@ type ServiceKafka struct{}
 
 func (e ServiceKafka) Type() string { return ProtoKafka }
 
+type ServiceKerberos struct {
+	Realm     string `json:"realm,omitempty"`
+	ErrorCode int    `json:"errorCode,omitempty"`
+	ErrorText string `json:"errorText,omitempty"`
+}
+
+func (e ServiceKerberos) Type() string { return ProtoKerberos }
+
 type ServiceKNXIP struct {
 	DeviceName      string   `json:"deviceName"`                // Friendly name (30 chars max)
 	KNXAddress      string   `json:"knxAddress"`                // Individual address "area.line.device"
@@ -904,6 +977,16 @@ type ServiceOracle struct {
 
 func (e ServiceOracle) Type() string { return ProtoOracle }
 
+type ServicePCOM struct {
+	Model     string   `json:"model,omitempty"`
+	HWVersion string   `json:"hwVersion,omitempty"`
+	OSVersion string   `json:"osVersion,omitempty"`
+	UnitID    string   `json:"unitId,omitempty"`
+	CPEs      []string `json:"cpes,omitempty"`
+}
+
+func (e ServicePCOM) Type() string { return ProtoPCOM }
+
 type ServicePinecone struct {
 	CPEs       []string `json:"cpes,omitempty"`       // Common Platform Enumeration with wildcard version
 	APIVersion string   `json:"apiVersion,omitempty"` // Pinecone API version from x-pinecone-api-version header
@@ -931,9 +1014,30 @@ type ServiceOPCUA struct {
 
 func (e ServiceOPCUA) Type() string { return ProtoOPCUA }
 
+type ServicePCWorx struct {
+	PLCType         string   `json:"plcType,omitempty"`
+	FirmwareVersion string   `json:"firmwareVersion,omitempty"`
+	FirmwareDate    string   `json:"firmwareDate,omitempty"`
+	FirmwareTime    string   `json:"firmwareTime,omitempty"`
+	ModelNumber     string   `json:"modelNumber,omitempty"`
+	CPEs            []string `json:"cpes,omitempty"`
+}
+
+func (e ServicePCWorx) Type() string { return ProtoPCWorx }
+
+
 type ServiceMQTT struct{}
 
 func (e ServiceMQTT) Type() string { return ProtoMQTT }
+
+type ServiceMegaco struct {
+	Version   string `json:"version,omitempty"`
+	MID       string `json:"mid,omitempty"`
+	Profile   string `json:"profile,omitempty"`
+	ErrorCode int    `json:"errorCode,omitempty"`
+}
+
+func (e ServiceMegaco) Type() string { return ProtoMegaco }
 
 type ServiceMemcached struct {
 	Version string   `json:"version,omitempty"`
@@ -941,6 +1045,13 @@ type ServiceMemcached struct {
 }
 
 func (e ServiceMemcached) Type() string { return ProtoMemcached }
+
+type ServiceMelsecQ struct {
+	CPUModel string   `json:"cpuModel,omitempty"`
+	CPEs     []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceMelsecQ) Type() string { return ProtoMelsecQ }
 
 type ServiceMilvus struct {
 	CPEs []string `json:"cpes,omitempty"`
@@ -1109,6 +1220,14 @@ type ServiceCODESYS struct {
 }
 
 func (e ServiceCODESYS) Type() string { return ProtoCODESYS }
+
+type ServiceCrimsonV3 struct {
+	Manufacturer string   `json:"manufacturer,omitempty"`
+	Model        string   `json:"model,omitempty"`
+	CPEs         []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceCrimsonV3) Type() string { return ProtoCrimsonV3 }
 
 type ServiceEtcd struct {
 	CPEs           []string `json:"cpes,omitempty"`
