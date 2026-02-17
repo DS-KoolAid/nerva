@@ -83,8 +83,14 @@ func (p *Plugin) Run(conn net.Conn, timeout time.Duration, target plugins.Target
 		return nil, nil
 	}
 
-	// Parse Search Response
-	metadata, err := parseSearchResponse(response)
+	// Validate total length field against actual response length
+	totalLength := int(binary.BigEndian.Uint16(response[4:6]))
+	if totalLength < headerLength || totalLength > len(response) {
+		return nil, nil
+	}
+
+	// Parse Search Response, bounded to declared total length
+	metadata, err := parseSearchResponse(response[:totalLength])
 	if err != nil {
 		return nil, err
 	}

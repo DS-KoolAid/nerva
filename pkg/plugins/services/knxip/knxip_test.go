@@ -549,6 +549,47 @@ func TestRun_InvalidHeader(t *testing.T) {
 	}
 }
 
+func TestRun_TotalLengthValidation(t *testing.T) {
+	tests := []struct {
+		name     string
+		response []byte
+	}{
+		{
+			"total length exceeds actual",
+			// Valid header but total length (0x00FF = 255) exceeds actual 8 bytes
+			[]byte{0x06, 0x10, 0x02, 0x02, 0x00, 0xFF, 0x00, 0x00},
+		},
+		{
+			"total length less than header",
+			// Total length (0x0004 = 4) is less than header length (6)
+			[]byte{0x06, 0x10, 0x02, 0x02, 0x00, 0x04, 0x00, 0x00},
+		},
+		{
+			"total length zero",
+			[]byte{0x06, 0x10, 0x02, 0x02, 0x00, 0x00, 0x00, 0x00},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conn := &mockConn{readData: tt.response}
+			target := plugins.Target{
+				Address: netip.MustParseAddrPort("192.168.1.100:3671"),
+			}
+
+			p := &Plugin{}
+			service, err := p.Run(conn, 5*time.Second, target)
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if service != nil {
+				t.Error("expected nil service for invalid total length")
+			}
+		})
+	}
+}
+
 // Shodan Validation Tests
 
 // Helper function to build Search Response for Shodan tests
