@@ -140,6 +140,7 @@ const (
 	ProtoSNPP             = "snpp"
 	ProtoSonarQube        = "sonarqube"
 	ProtoSSH              = "ssh"
+	ProtoSSTP             = "sstp"
 	ProtoStun             = "stun"
 	ProtoSVN              = "svn"
 	ProtoSybase           = "sybase"
@@ -411,6 +412,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoSSH:
 		var p ServiceSSH
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoSSTP:
+		var p ServiceSSTP
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoSVN:
@@ -810,6 +815,14 @@ type ServiceSonarQube struct {
 }
 
 func (e ServiceSonarQube) Type() string { return ProtoSonarQube }
+
+type ServiceSSTP struct {
+	Server string   `json:"server,omitempty"` // Server header value (e.g., "Microsoft-HTTPAPI/2.0", "MikroTik-SSTP")
+	Vendor string   `json:"vendor,omitempty"` // Identified vendor: "Microsoft", "MikroTik", or "Unknown"
+	CPEs   []string `json:"cpes,omitempty"`   // Common Platform Enumeration identifiers
+}
+
+func (e ServiceSSTP) Type() string { return ProtoSSTP }
 
 type ServiceNTP struct{}
 
