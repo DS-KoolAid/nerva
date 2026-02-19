@@ -59,6 +59,7 @@ const (
 	ProtoEtcd             = "etcd"
 	ProtoEthernetIP       = "ethernetip"
 	ProtoFirebird         = "firebird"
+	ProtoFox              = "fox"
 	ProtoFTP              = "ftp"
 	ProtoGESRTP           = "gesrtp"
 	ProtoGTPC             = "gtpc"
@@ -109,6 +110,7 @@ const (
 	ProtoOpenVPN          = "openvpn"
 	ProtoOracle           = "oracle"
 	ProtoPCOM             = "pcom"
+	ProtoPFCP             = "pfcp"
 	ProtoPinecone         = "pinecone"
 	ProtoPCWorx           = "pcworx"
 	ProtoPOP3             = "pop3"
@@ -226,6 +228,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoFTP:
 		var p ServiceFTP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoFox:
+		var p ServiceFox
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoGTPC:
@@ -576,6 +582,10 @@ func (e Service) Metadata() Metadata {
 		var p ServiceNFS
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoPFCP:
+		var p ServicePFCP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	default:
 		var p ServiceUnknown
 		_ = json.Unmarshal(e.Raw, &p)
@@ -921,6 +931,13 @@ type ServiceGTPU struct{}
 
 func (e ServiceGTPU) Type() string { return ProtoGTPU }
 
+type ServicePFCP struct {
+	RecoveryTimestamp uint32 `json:"recoveryTimestamp,omitempty"`
+	NodeID            string `json:"nodeId,omitempty"`
+}
+
+func (e ServicePFCP) Type() string { return ProtoPFCP }
+
 type ServiceFTP struct {
 	Banner     string   `json:"banner"`
 	Confidence string   `json:"confidence,omitempty"` // Detection confidence: "high", "medium", or "low"
@@ -928,6 +945,22 @@ type ServiceFTP struct {
 }
 
 func (e ServiceFTP) Type() string { return ProtoFTP }
+
+type ServiceFox struct {
+	Version     string   `json:"version,omitempty"`     // Fox protocol version
+	HostName    string   `json:"hostName,omitempty"`    // Device hostname
+	HostAddress string   `json:"hostAddress,omitempty"` // Device IP address
+	AppName     string   `json:"appName,omitempty"`     // Application name
+	AppVersion  string   `json:"appVersion,omitempty"`  // Application version
+	VMName      string   `json:"vmName,omitempty"`      // Virtual machine name
+	VMVersion   string   `json:"vmVersion,omitempty"`   // VM version
+	OSName      string   `json:"osName,omitempty"`      // Operating system name
+	StationName string   `json:"stationName,omitempty"` // Station name
+	BrandId     string   `json:"brandId,omitempty"`     // Brand identifier
+	CPEs        []string `json:"cpes,omitempty"`        // Common Platform Enumeration identifiers for vulnerability tracking
+}
+
+func (e ServiceFox) Type() string { return ProtoFox }
 
 type ServiceGESRTP struct {
 	PLCName         string   `json:"plcName,omitempty"`
