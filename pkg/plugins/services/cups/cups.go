@@ -167,7 +167,11 @@ func buildCUPSCPE(version string) string {
 //   - *plugins.Service: Service information if CUPS detected, nil otherwise
 //   - error: Error details if detection failed at the network level
 func detectCUPS(conn net.Conn, target plugins.Target, timeout time.Duration, tls bool) (*plugins.Service, error) {
-	host := fmt.Sprintf("%s:%d", target.Host, target.Address.Port())
+	host := target.Host
+	if host == "" {
+		host = target.Address.Addr().String()
+	}
+	host = fmt.Sprintf("%s:%d", host, target.Address.Port())
 
 	request := buildCUPSHTTPRequest(host)
 	response, err := utils.SendRecv(conn, []byte(request), timeout)
