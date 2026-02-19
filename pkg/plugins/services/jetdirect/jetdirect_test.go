@@ -87,6 +87,18 @@ func TestDetectPJL(t *testing.T) {
 			false,
 			"",
 		},
+		{
+			"HP unquoted response",
+			[]byte("@PJL INFO ID\r\nhp LaserJet 4200\r\n"),
+			true,
+			"hp LaserJet 4200",
+		},
+		{
+			"Unquoted with trailing whitespace",
+			[]byte("@PJL INFO ID\r\nBrother HL-2270DW  \r\n"),
+			true,
+			"Brother HL-2270DW",
+		},
 	}
 
 	for _, tt := range tests {

@@ -38,8 +38,11 @@ var uel = []byte("\x1b%-12345X")
 // PJL probe: UEL + INFO ID + UEL
 var pjlInfoIDProbe = append(append(append([]byte{}, uel...), []byte("@PJL INFO ID\r\n")...), uel...)
 
-// pjlInfoIDPattern matches @PJL INFO ID response and captures the quoted ID string
-var pjlInfoIDPattern = regexp.MustCompile(`@PJL INFO ID\r?\n"([^"]+)"`)
+// pjlInfoIDQuoted matches @PJL INFO ID response with quoted ID (e.g., "HP LaserJet 4250")
+var pjlInfoIDQuoted = regexp.MustCompile(`@PJL INFO ID\r?\n"([^"]+)"`)
+
+// pjlInfoIDUnquoted matches @PJL INFO ID response with unquoted ID (e.g., hp LaserJet 4200)
+var pjlInfoIDUnquoted = regexp.MustCompile(`@PJL INFO ID\r?\n([^\r\n]+)`)
 
 // Vendor extraction patterns (ordered by specificity)
 var vendorPatterns = []struct {
@@ -78,9 +81,15 @@ func detectPJL(response []byte) (bool, string) {
 	if len(response) == 0 {
 		return false, ""
 	}
-	matches := pjlInfoIDPattern.FindSubmatch(response)
+	// Try quoted format first (more specific)
+	matches := pjlInfoIDQuoted.FindSubmatch(response)
 	if len(matches) >= 2 {
 		return true, string(matches[1])
+	}
+	// Fall back to unquoted format
+	matches = pjlInfoIDUnquoted.FindSubmatch(response)
+	if len(matches) >= 2 {
+		return true, strings.TrimSpace(string(matches[1]))
 	}
 	return false, ""
 }
