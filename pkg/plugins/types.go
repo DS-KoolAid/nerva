@@ -703,6 +703,7 @@ type ServiceProConOS struct {
 	ProjectName        string `json:"projectName,omitempty"`        // Project name from offset 78
 	BootProject        string `json:"bootProject,omitempty"`        // Boot project (variable offset)
 	ProjectSourceCode  string `json:"projectSourceCode,omitempty"`  // Source code file (variable offset)
+	CPEs               []string `json:"cpes,omitempty"`
 }
 
 func (e ServiceProConOS) Type() string { return ProtoProConOS }

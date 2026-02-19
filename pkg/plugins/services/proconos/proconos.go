@@ -15,7 +15,9 @@
 package proconos
 
 import (
+	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/praetorian-inc/nerva/pkg/plugins"
@@ -27,9 +29,9 @@ const (
 
 	// Protocol constants
 	ResponseSignature        = 0xcc
-	LadderLogicRuntimeOffset = 13
-	PLCTypeOffset            = 45
-	ProjectNameOffset        = 78
+	LadderLogicRuntimeOffset = 8
+	PLCTypeOffset            = 44
+	ProjectNameOffset        = 76
 )
 
 type ProConOSPlugin struct{}
@@ -47,9 +49,9 @@ Detection Strategy:
 1. Send ProConOS probe packet (10 bytes)
 2. Validate response starts with 0xcc signature
 3. Extract metadata from null-terminated strings at fixed offsets:
-   - Offset 13: Ladder Logic Runtime version
-   - Offset 45: PLC Type identifier
-   - Offset 78: Project Name
+   - Offset 8: Ladder Logic Runtime version
+   - Offset 44: PLC Type identifier
+   - Offset 76: Project Name
    - Variable offsets: Boot Project and Project Source Code
 
 ICS/SCADA Safety:
@@ -114,6 +116,8 @@ func (p *ProConOSPlugin) Run(conn net.Conn, timeout time.Duration, target plugin
 		}
 	}
 
+	serviceData.CPEs = generateProConOSCPE(serviceData.LadderLogicRuntime)
+
 	return plugins.CreateServiceFrom(target, serviceData, false, "", plugins.TCP), nil
 }
 
@@ -143,4 +147,30 @@ func extractNullTerminatedString(data []byte, offset int) string {
 	}
 
 	return string(data[offset:end])
+}
+
+// generateProConOSCPE extracts version from the runtime string and generates a CPE.
+// Runtime strings look like "V4.2ProConOS V4.2.0214 Oct 28 2011".
+func generateProConOSCPE(runtime string) []string {
+	idx := strings.Index(strings.ToLower(runtime), "proconos v")
+	if idx < 0 {
+		return nil
+	}
+	versionStart := idx + len("proconos v")
+	if versionStart >= len(runtime) {
+		return nil
+	}
+	rest := runtime[versionStart:]
+	spaceIdx := strings.Index(rest, " ")
+	version := rest
+	if spaceIdx > 0 {
+		version = rest[:spaceIdx]
+	}
+	version = strings.ToLower(strings.TrimSpace(version))
+	if version == "" {
+		return nil
+	}
+	return []string{
+		fmt.Sprintf("cpe:2.3:a:phoenix_contact:proconos:%s:*:*:*:*:*:*:*", version),
+	}
 }
