@@ -521,3 +521,61 @@ func TestTeamCityFingerprinter_Integration(t *testing.T) {
 		t.Error("TeamCityFingerprinter not found in RunFingerprinters results")
 	}
 }
+
+func TestTeamCityFingerprinter_Fingerprint_HeaderOnly(t *testing.T) {
+	fp := &TeamCityFingerprinter{}
+	resp := &http.Response{
+		Header: make(http.Header),
+	}
+	resp.Header.Set("TeamCity-Node-Id", "MAIN_SERVER")
+
+	// Body is plain text (like a 401 response)
+	body := []byte("There is no administrator account on the server")
+
+	result, err := fp.Fingerprint(resp, []byte(body))
+	if err != nil {
+		t.Fatalf("Fingerprint() error = %v", err)
+	}
+	if result == nil {
+		t.Fatal("Fingerprint() returned nil for header-only detection")
+	}
+	if result.Technology != "teamcity" {
+		t.Errorf("Technology = %q, want %q", result.Technology, "teamcity")
+	}
+	if result.Version != "" {
+		t.Errorf("Version = %q, want empty string", result.Version)
+	}
+	// CPE should use wildcard for unknown version
+	expectedCPE := "cpe:2.3:a:jetbrains:teamcity:*:*:*:*:*:*:*:*"
+	if len(result.CPEs) == 0 || result.CPEs[0] != expectedCPE {
+		t.Errorf("CPE = %v, want [%q]", result.CPEs, expectedCPE)
+	}
+	if result.Metadata["nodeId"] != "MAIN_SERVER" {
+		t.Errorf("Metadata[nodeId] = %v, want %q", result.Metadata["nodeId"], "MAIN_SERVER")
+	}
+}
+
+func TestTeamCityFingerprinter_Fingerprint_HeaderWithInvalidVersion(t *testing.T) {
+	fp := &TeamCityFingerprinter{}
+	resp := &http.Response{
+		Header: make(http.Header),
+	}
+	resp.Header.Set("TeamCity-Node-Id", "MAIN_SERVER")
+
+	// Body has CPE injection attempt, but header is present
+	body := []byte(`{"version": "10.0.0:*:*:*:*:*:*:*"}`)
+
+	result, err := fp.Fingerprint(resp, []byte(body))
+	if err != nil {
+		t.Fatalf("Fingerprint() error = %v", err)
+	}
+	if result == nil {
+		t.Fatal("Fingerprint() returned nil despite header detection")
+	}
+	if result.Version != "" {
+		t.Errorf("Version = %q, want empty (invalid version should be discarded)", result.Version)
+	}
+	if result.Metadata["nodeId"] != "MAIN_SERVER" {
+		t.Errorf("Metadata[nodeId] = %v, want %q", result.Metadata["nodeId"], "MAIN_SERVER")
+	}
+}

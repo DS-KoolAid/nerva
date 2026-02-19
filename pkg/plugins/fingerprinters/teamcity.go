@@ -127,10 +127,12 @@ func (f *TeamCityFingerprinter) Match(resp *http.Response) bool {
 
 func (f *TeamCityFingerprinter) Fingerprint(resp *http.Response, body []byte) (*FingerprintResult, error) {
 	metadata := make(map[string]any)
+	detected := false
 
 	// Extract nodeId from response header (present on all TeamCity responses)
 	if nodeId := resp.Header.Get("TeamCity-Node-Id"); nodeId != "" {
 		metadata["nodeId"] = nodeId
+		detected = true
 	}
 
 	// Phase 1: Try JSON parsing (primary)
@@ -141,16 +143,16 @@ func (f *TeamCityFingerprinter) Fingerprint(resp *http.Response, body []byte) (*
 		version, buildNumber, internalID = parseTeamCityXML(body)
 	}
 
-	// Must have extracted a version to confirm detection
-	if version == "" {
-		return nil, nil
+	// Clean and validate version if extracted
+	if version != "" {
+		version = cleanTeamCityVersion(version)
+		if !teamcityVersionRegex.MatchString(version) {
+			version = "" // Invalid format, discard but don't abort detection
+		}
 	}
 
-	// Clean version: strip " (build XXXXX)" suffix
-	version = cleanTeamCityVersion(version)
-
-	// Validate version format to prevent CPE injection
-	if !teamcityVersionRegex.MatchString(version) {
+	// Must have header-based detection or a valid version
+	if !detected && version == "" {
 		return nil, nil
 	}
 
