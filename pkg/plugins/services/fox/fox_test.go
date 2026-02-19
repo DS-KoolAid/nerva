@@ -243,8 +243,8 @@ func TestFoxPlugin_RequestFormat(t *testing.T) {
 	_, err := plugin.Run(conn, 5*time.Second, target)
 	require.NoError(t, err)
 
-	// Verify the correct request was sent
-	expectedRequest := "fox a 1 -1 fox hello\n{\nfox.version=s:1.0\nid=i:1\n}\n"
+	// Verify the correct request was sent (zgrab2-compatible with full system info)
+	expectedRequest := "fox a 1 -1 fox hello\n{\nfox.version=s:1.0\nid=i:1\nhostName=s:scanner\nhostAddress=s:192.168.1.1\napp.name=s:Workbench\napp.version=s:3.8.0\nvm.name=s:Java HotSpot(TM) Server VM\nvm.version=s:11.0\nos.name=s:Linux\nos.version=s:5.4\nlang=s:en\nhostId=s:scanner-001\nvmUuid=s:00000000-0000-0000-0000-000000000000\nbrandId=s:vykon\n};;\n"
 	assert.Equal(t, expectedRequest, string(conn.writeData), "Should send correct Fox hello request")
 }
 

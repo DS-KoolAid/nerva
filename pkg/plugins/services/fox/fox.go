@@ -59,17 +59,18 @@ func (p *FOXPlugin) PortPriority(port uint16) bool {
 
 // Run performs Fox protocol detection and metadata extraction
 //
-// Fox protocol hello handshake:
-// Request:  "fox a 1 -1 fox hello\n{\nfox.version=s:1.0\nid=i:1\n}\n"
+// Fox protocol hello handshake (zgrab2-compatible format):
+// Request:  "fox a 1 -1 fox hello\n{\nfox.version=s:1.0\nid=i:1\n[system fields]\n};;\n"
 // Response: "fox a 0 -1 fox hello\n{\nkey=type:value\n...\n}\n"
 //
+// The request includes system information fields that real Fox devices expect.
 // The response contains key-value pairs in format "key=type:value" where:
 // - key: Property name (e.g., "hostName", "app.version")
 // - type: Data type (s=string, i=integer)
 // - value: Property value
 func (p *FOXPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.Target) (*plugins.Service, error) {
-	// Build Fox hello request
-	request := "fox a 1 -1 fox hello\n{\nfox.version=s:1.0\nid=i:1\n}\n"
+	// Build Fox hello request (zgrab2-compatible with full system info)
+	request := "fox a 1 -1 fox hello\n{\nfox.version=s:1.0\nid=i:1\nhostName=s:scanner\nhostAddress=s:192.168.1.1\napp.name=s:Workbench\napp.version=s:3.8.0\nvm.name=s:Java HotSpot(TM) Server VM\nvm.version=s:11.0\nos.name=s:Linux\nos.version=s:5.4\nlang=s:en\nhostId=s:scanner-001\nvmUuid=s:00000000-0000-0000-0000-000000000000\nbrandId=s:vykon\n};;\n"
 
 	// Send request and receive response
 	response, err := utils.SendRecv(conn, []byte(request), timeout)
