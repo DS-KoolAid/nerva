@@ -106,6 +106,7 @@ const (
 	ProtoOpenVPN          = "openvpn"
 	ProtoOracle           = "oracle"
 	ProtoPCOM             = "pcom"
+	ProtoPFCP             = "pfcp"
 	ProtoPinecone         = "pinecone"
 	ProtoPCWorx           = "pcworx"
 	ProtoPOP3             = "pop3"
@@ -546,6 +547,10 @@ func (e Service) Metadata() Metadata {
 		var p ServiceNFS
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoPFCP:
+		var p ServicePFCP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	default:
 		var p ServiceUnknown
 		_ = json.Unmarshal(e.Raw, &p)
@@ -866,6 +871,13 @@ func (e ServiceGTPPrime) Type() string { return ProtoGTPPrime }
 type ServiceGTPU struct{}
 
 func (e ServiceGTPU) Type() string { return ProtoGTPU }
+
+type ServicePFCP struct {
+	RecoveryTimestamp uint32 `json:"recoveryTimestamp,omitempty"`
+	NodeID            string `json:"nodeId,omitempty"`
+}
+
+func (e ServicePFCP) Type() string { return ProtoPFCP }
 
 type ServiceFTP struct {
 	Banner     string   `json:"banner"`
