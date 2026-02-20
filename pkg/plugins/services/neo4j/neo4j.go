@@ -426,6 +426,9 @@ func extractServerField(data []byte) string {
 
 // dechunkBoltMessage reassembles a chunked Bolt message into a single body.
 func dechunkBoltMessage(response []byte) ([]byte, error) {
+	const maxChunkSize = 16 * 1024      // 16KB per chunk max
+	const maxMessageBytes = 128 * 1024 // 128KB total message max
+
 	if len(response) < 4 {
 		return nil, &utils.InvalidResponseErrorInfo{
 			Service: NEO4J,
@@ -449,10 +452,25 @@ func dechunkBoltMessage(response []byte) ([]byte, error) {
 		if chunkLen == 0 {
 			break
 		}
+		// Validate chunk size to prevent excessive memory allocation
+		if chunkLen > maxChunkSize {
+			return nil, &utils.InvalidResponseErrorInfo{
+				Service: NEO4J,
+				Info:    "chunk size exceeds maximum",
+			}
+		}
 		if pos+chunkLen > len(response) {
 			return nil, &utils.InvalidResponseErrorInfo{
 				Service: NEO4J,
 				Info:    "chunk length exceeds response size",
+			}
+		}
+
+		// Check total message size before appending
+		if len(body)+chunkLen > maxMessageBytes {
+			return nil, &utils.InvalidResponseErrorInfo{
+				Service: NEO4J,
+				Info:    "bolt message exceeds maximum size",
 			}
 		}
 
@@ -515,6 +533,7 @@ func recvExact(conn net.Conn, n int, timeout time.Duration) ([]byte, error) {
 // recvBoltMessageRaw reads a complete chunked Bolt message, handling TCP segmentation.
 func recvBoltMessageRaw(conn net.Conn, timeout time.Duration) ([]byte, error) {
 	const maxMessageBytes = 128 * 1024
+	const maxChunkSize = 16 * 1024 // 16KB per chunk max
 
 	raw := make([]byte, 0, 4096)
 	consumed := 0
@@ -530,12 +549,20 @@ func recvBoltMessageRaw(conn net.Conn, timeout time.Duration) ([]byte, error) {
 				consumed += 2
 				return raw[:consumed], nil
 			}
+			// Validate chunk size before processing
+			if chunkLen > maxChunkSize {
+				return []byte{}, &utils.InvalidResponseErrorInfo{
+					Service: NEO4J,
+					Info:    "chunk size exceeds maximum",
+				}
+			}
 			if consumed+2+chunkLen > len(raw) {
 				break
 			}
 			consumed += 2 + chunkLen
 		}
 
+		// Check message size limit BEFORE allocating more memory
 		if len(raw) >= maxMessageBytes {
 			return []byte{}, &utils.InvalidResponseErrorInfo{
 				Service: NEO4J,
@@ -557,6 +584,13 @@ func recvBoltMessageRaw(conn net.Conn, timeout time.Duration) ([]byte, error) {
 		}
 		if n == 0 {
 			return []byte{}, nil
+		}
+		// Additional check before appending to prevent allocation if it would exceed limit
+		if len(raw)+n > maxMessageBytes {
+			return []byte{}, &utils.InvalidResponseErrorInfo{
+				Service: NEO4J,
+				Info:    "bolt message exceeds maximum size",
+			}
 		}
 		raw = append(raw, tmp[:n]...)
 	}

@@ -15,7 +15,6 @@
 package pluginutils
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -80,7 +79,7 @@ func Recv(conn net.Conn, timeout time.Duration) ([]byte, error) {
 			return []byte{}, nil
 		}
 		return response[:length], &ReadError{
-			Info:         hex.EncodeToString(response[:length]),
+			Info:         fmt.Sprintf("partial read: %d bytes before error", length),
 			WrappedError: err,
 		}
 	}
@@ -103,12 +102,12 @@ func RecvFrom(conn net.PacketConn, timeout time.Duration) ([]byte, net.Addr, err
 		var netErr net.Error
 		// Handle timeout or connection refused (e.g., ICMP Port Unreachable)
 		if (errors.As(err, &netErr) && netErr.Timeout()) ||
-			errors.Is(err, syscall.ECONNREFUSED) { 
+			errors.Is(err, syscall.ECONNREFUSED) {
 			return []byte{}, nil, nil
 		}
-		
+
 		return response[:n], addr, &ReadError{
-			Info:         hex.EncodeToString(response[:n]),
+			Info:         fmt.Sprintf("partial read: %d bytes before error", n),
 			WrappedError: err,
 		}
 	}
