@@ -56,6 +56,7 @@ import (
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/pinecone"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/pop3"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/postgresql"
+	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/pptp"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/rdp"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/redis"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/javarmi"

@@ -76,6 +76,7 @@ const (
 	ProtoPinecone   = "pinecone"
 	ProtoPOP3       = "pop3"
 	ProtoPOP3S      = "pop3s"
+	ProtoPPTP       = "pptp"
 	ProtoPostgreSQL = "postgresql"
 	ProtoRDP        = "rdp"
 	ProtoRPC        = "rpc"
@@ -301,6 +302,10 @@ func (e Service) Metadata() Metadata {
 		var p ServicePOP3S
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
+	case ProtoPPTP:
+		var p ServicePPTP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
 	case ProtoSNPP:
 		var p ServiceSNPP
 		_ = json.Unmarshal(e.Raw, &p)
@@ -492,6 +497,19 @@ type ServiceIPSEC struct {
 }
 
 func (e ServiceIPSEC) Type() string { return ProtoIPSEC }
+
+type ServicePPTP struct {
+	Hostname            string `json:"hostname,omitempty"`
+	VendorString        string `json:"vendorString,omitempty"`
+	FirmwareRevision    uint16 `json:"firmwareRevision"`
+	ProtocolVersion     string `json:"protocolVersion,omitempty"`
+	FramingCapabilities uint32 `json:"framingCapabilities"`
+	BearerCapabilities  uint32 `json:"bearerCapabilities"`
+	MaxChannels         uint16 `json:"maxChannels"`
+	ResultCode          uint8  `json:"resultCode"`
+}
+
+func (e ServicePPTP) Type() string { return ProtoPPTP }
 
 type ServiceMSSQL struct {
 	CPEs []string `json:"cpes,omitempty"` // Common Platform Enumeration identifiers for vulnerability tracking
