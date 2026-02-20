@@ -163,6 +163,10 @@ func detectCommandArgs(addr string, timeout time.Duration, useTLS bool) *bool {
 	// Create appropriate connection type
 	if useTLS {
 		dialer := &net.Dialer{Timeout: timeout}
+		// InsecureSkipVerify is intentionally true for this scanner because:
+		// 1. We're probing unknown hosts that often have self-signed certificates
+		// 2. We're only detecting the NRPE service, not transmitting sensitive data
+		// 3. Certificate validation would cause false negatives on valid NRPE services
 		tlsConfig := &tls.Config{InsecureSkipVerify: true}
 		conn, err = tls.DialWithDialer(dialer, "tcp", addr, tlsConfig)
 	} else {

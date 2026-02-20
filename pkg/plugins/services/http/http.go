@@ -227,7 +227,8 @@ func (p *HTTPSPlugin) FingerprintResponse(resp *http.Response, client *http.Clie
 
 func fingerprint(resp *http.Response, analyzer *wappalyzer.Wappalyze, client *http.Client, baseURL string, host string) ([]string, []string, error) {
 	var technologies, cpes []string
-	data, err := io.ReadAll(resp.Body)
+	maxResponseSize := int64(10 * 1024 * 1024) // 10MB limit
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -275,7 +276,7 @@ func fingerprint(resp *http.Response, analyzer *wappalyzer.Wappalyze, client *ht
 				continue
 			}
 
-			probeBody, err := io.ReadAll(probeResp.Body)
+			probeBody, err := io.ReadAll(io.LimitReader(probeResp.Body, maxResponseSize))
 			probeResp.Body.Close()
 			if err != nil {
 				continue

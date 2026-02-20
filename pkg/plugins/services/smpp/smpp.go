@@ -316,9 +316,15 @@ func extractProtocolVersion(response []byte) string {
 	for pos+4 <= len(response) {
 		tag := binary.BigEndian.Uint16(response[pos : pos+2])
 		length := binary.BigEndian.Uint16(response[pos+2 : pos+4])
+		pos += 4
 
-		if tag == TLV_SC_INTERFACE_VERSION && length == 1 && pos+4+int(length) <= len(response) {
-			versionByte := response[pos+4]
+		// Validate TLV length before reading value
+		if int(length) > len(response)-pos {
+			break // TLV length exceeds remaining data
+		}
+
+		if tag == TLV_SC_INTERFACE_VERSION && length == 1 {
+			versionByte := response[pos]
 			// Map version byte to version string
 			switch versionByte {
 			case 0x33:
@@ -332,7 +338,7 @@ func extractProtocolVersion(response []byte) string {
 			}
 		}
 
-		pos += 4 + int(length)
+		pos += int(length)
 	}
 
 	return ""

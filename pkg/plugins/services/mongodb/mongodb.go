@@ -314,11 +314,13 @@ func parseBSONString(bsonDoc []byte, key string) string {
 			}
 			strLen := binary.LittleEndian.Uint32(bsonDoc[pos : pos+4])
 			pos += 4
-			if pos+int(strLen) > len(bsonDoc) || strLen == 0 {
+			// Validate uint32 bounds BEFORE casting to int to prevent overflow
+			if strLen == 0 || strLen > uint32(len(bsonDoc)-pos) {
 				return ""
 			}
+			strLenInt := int(strLen) // Safe to cast now
 			// Return string without null terminator
-			return string(bsonDoc[pos : pos+int(strLen)-1])
+			return string(bsonDoc[pos : pos+strLenInt-1])
 		}
 
 		// Skip value based on type
@@ -330,18 +332,30 @@ func parseBSONString(bsonDoc []byte, key string) string {
 				return ""
 			}
 			strLen := binary.LittleEndian.Uint32(bsonDoc[pos : pos+4])
+			// Validate uint32 bounds BEFORE casting to int to prevent overflow
+			if strLen > uint32(len(bsonDoc)-pos-4) {
+				return ""
+			}
 			pos += 4 + int(strLen)
 		case 0x03, 0x04: // document, array
 			if pos+4 > len(bsonDoc) {
 				return ""
 			}
 			subDocLen := binary.LittleEndian.Uint32(bsonDoc[pos : pos+4])
+			// Validate uint32 bounds BEFORE casting to int to prevent overflow
+			if subDocLen > uint32(len(bsonDoc)-pos) {
+				return ""
+			}
 			pos += int(subDocLen)
 		case 0x05: // binary
 			if pos+5 > len(bsonDoc) {
 				return ""
 			}
 			binLen := binary.LittleEndian.Uint32(bsonDoc[pos : pos+4])
+			// Validate uint32 bounds BEFORE casting to int to prevent overflow
+			if binLen > uint32(len(bsonDoc)-pos-5) {
+				return ""
+			}
 			pos += 5 + int(binLen)
 		case 0x07: // ObjectId
 			pos += 12
@@ -430,18 +444,30 @@ func parseBSONInt32(bsonDoc []byte, key string) (int32, bool) {
 				return 0, false
 			}
 			strLen := binary.LittleEndian.Uint32(bsonDoc[pos : pos+4])
+			// Validate uint32 bounds BEFORE casting to int to prevent overflow
+			if strLen > uint32(len(bsonDoc)-pos-4) {
+				return 0, false
+			}
 			pos += 4 + int(strLen)
 		case 0x03, 0x04: // document, array
 			if pos+4 > len(bsonDoc) {
 				return 0, false
 			}
 			subDocLen := binary.LittleEndian.Uint32(bsonDoc[pos : pos+4])
+			// Validate uint32 bounds BEFORE casting to int to prevent overflow
+			if subDocLen > uint32(len(bsonDoc)-pos) {
+				return 0, false
+			}
 			pos += int(subDocLen)
 		case 0x05: // binary
 			if pos+5 > len(bsonDoc) {
 				return 0, false
 			}
 			binLen := binary.LittleEndian.Uint32(bsonDoc[pos : pos+4])
+			// Validate uint32 bounds BEFORE casting to int to prevent overflow
+			if binLen > uint32(len(bsonDoc)-pos-5) {
+				return 0, false
+			}
 			pos += 5 + int(binLen)
 		case 0x07: // ObjectId
 			pos += 12

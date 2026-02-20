@@ -262,6 +262,11 @@ func extractParameter(response []byte, targetCodepoint uint16) []byte {
 		// Extract parameter codepoint (big-endian)
 		paramCodepoint := binary.BigEndian.Uint16(response[offset+2 : offset+4])
 
+		// Validate paramLen before arithmetic to prevent integer overflow
+		if int(paramLen) < 0 || offset > responseLen-int(paramLen) {
+			break // Prevents integer overflow
+		}
+
 		// Check if we found the target parameter
 		if paramCodepoint == targetCodepoint {
 			// Calculate data start and end

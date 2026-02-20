@@ -62,8 +62,8 @@ type MYSQLPlugin struct{}
 
 const (
 	// protocolVersion = 10
-	// maxPacketLength = 1<<24 - 1
-	MYSQL = "MySQL"
+	maxPacketSize = 1 << 24 // 16MB max MySQL packet (MySQL protocol limit)
+	MYSQL         = "MySQL"
 )
 
 // Version detection regex patterns for MySQL-family servers
@@ -164,17 +164,19 @@ func CheckErrorMessagePacket(response []byte) (string, int, error) {
 		}
 	}
 
+	// MySQL uses 3 bytes for packet length (bytes 0-2), byte 3 is sequence number
 	packetLength := int(
-		uint32(
-			response[0],
-		) | uint32(
-			response[1],
-		)<<8 | uint32(
-			response[2],
-		)<<16 | uint32(
-			response[3],
-		)<<24,
+		uint32(response[0]) | uint32(response[1])<<8 | uint32(response[2])<<16,
 	)
+
+	// Validate packet length is within MySQL protocol limits
+	if packetLength < 0 || packetLength > maxPacketSize {
+		return "", 0, &utils.InvalidResponseErrorInfo{
+			Service: MYSQL,
+			Info:    "packet length out of valid range",
+		}
+	}
+
 	actualResponseLength := len(response) - 4
 
 	if packetLength != actualResponseLength {
@@ -220,17 +222,19 @@ func CheckInitialHandshakePacket(response []byte) (string, error) {
 		}
 	}
 
+	// MySQL uses 3 bytes for packet length (bytes 0-2), byte 3 is sequence number
 	packetLength := int(
-		uint32(
-			response[0],
-		) | uint32(
-			response[1],
-		)<<8 | uint32(
-			response[2],
-		)<<16 | uint32(
-			response[3],
-		)<<24,
+		uint32(response[0]) | uint32(response[1])<<8 | uint32(response[2])<<16,
 	)
+
+	// Validate packet length is within MySQL protocol limits
+	if packetLength < 0 || packetLength > maxPacketSize {
+		return "", &utils.InvalidResponseErrorInfo{
+			Service: MYSQL,
+			Info:    "packet length out of valid range",
+		}
+	}
+
 	version := int(response[4])
 
 	if packetLength < 25 || packetLength > 4096 {
