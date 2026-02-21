@@ -1,0 +1,67 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - unconvert
+    - gocritic
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+  goimports:
+    local-prefixes: github.com/praetorian-inc/nerva
+  misspell:
+    locale: US
+    ignore-words:
+      - routeros      # MikroTik RouterOS product name
+      - mosquitto     # Eclipse Mosquitto MQTT broker
+      - Tunnelling    # British spelling variant of Tunneling
+      - Controles     # Cristal Controles company name
+      - Theatre       # Electronic Theatre Controls Inc. (British spelling)
+      - Exhausto      # Exhausto A/S company name
+      - Instrumentos  # Kron Instrumentos Eletricos Ltda company name
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - unnamedResult         # Overly pedantic - unnamed results are acceptable
+      - paramTypeCombine      # Style preference - explicit types can be clearer
+      - hugeParam             # Heavy structs are often necessary
+      - appendCombine         # Micro-optimization - readability over performance
+      - commentedOutCode      # Sometimes useful for documentation
+      - ifElseChain           # Switch statements not always clearer
+      - stringXbytes          # Explicit conversion can be clearer
+      - assignOp              # Style preference - x = x + y is clearer than x += y
+      - emptyStringTest       # len(s) > 0 is acceptable alternative to s != ""
+      - unslice               # Overly pedantic optimization
+      - httpNoBody            # nil body is acceptable for simple requests
+      - whyNoLint             # Context often clear from code
+      - indexAlloc            # Micro-optimization not worth code complexity
+      - preferStringWriter    # Byte slices sometimes more appropriate
+      - appendAssign          # Sometimes intentional for immutability
+      - typeDefFirst          # Style preference - methods can appear before type definition
+      - regexpSimplify        # Character class shortcuts not always clearer
+      - dupImport             # Sometimes necessary for side effects
+      - nestingReduce         # Inverted logic not always clearer
+      - tooManyResultsChecker # Multiple returns sometimes necessary for clarity
+
+issues:
+  exclude-rules:
+    # Allow dot imports in test files
+    - path: _test\.go
+      linters:
+        - revive
+      text: "dot-imports"

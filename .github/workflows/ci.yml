@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  CGO_ENABLED: 0
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.mod'
+        cache: true
+
+    - name: Build
+      run: go build -trimpath -ldflags="-s -w" -o nerva ./cmd/nerva
+
+    - name: Run tests
+      run: go test -short ./...
+
+    - name: Run vet
+      run: go vet ./...
+
+    - name: Verify binary
+      run: |
+        test -x ./nerva || (echo "Binary not created" && exit 1)
+        ./nerva --help
