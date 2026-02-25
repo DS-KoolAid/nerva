@@ -820,6 +820,86 @@ func TestShodanVectors(t *testing.T) {
 	}
 }
 
+// startSplitMockXMPPServer starts a TCP listener that simulates servers like
+// ejabberd which send the stream opening and the features block in two separate
+// TCP writes. The first write contains the stream:stream opening tag and the
+// second write (after a brief pause to force a distinct TCP segment) contains
+// the stream:features block. This exercises the two-read fallback path.
+func startSplitMockXMPPServer(t *testing.T, firstWrite, secondWrite string) *net.TCPListener {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err, "failed to start split mock XMPP server")
+
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		// Drain the probe sent by the plugin.
+		buf := make([]byte, 512)
+		_, _ = conn.Read(buf)
+
+		// First TCP write: stream opening only (no features block).
+		_, _ = conn.Write([]byte(firstWrite))
+
+		// Flush by setting a very short write deadline so the first segment
+		// lands before the second. In practice the 1ms sleep ensures the
+		// kernel delivers them as separate reads on the client side.
+		time.Sleep(1 * time.Millisecond)
+
+		// Second TCP write: features block.
+		_, _ = conn.Write([]byte(secondWrite))
+	}()
+
+	return listener.(*net.TCPListener)
+}
+
+// TestRunWithSplitResponse verifies that Run() still populates enrichment data
+// (TLS, mechanisms, caps, ServerSoftware) when the XMPP server sends the
+// stream opening and the features block in two separate TCP segments — the
+// real-world behaviour of ejabberd and other implementations.
+func TestRunWithSplitResponse(t *testing.T) {
+	// Split the ejabberd fixture at the boundary between the stream:stream
+	// opening tag and the stream:features block to simulate two TCP writes.
+	const streamOpening = `<?xml version='1.0'?><stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' id='abc123' from='example.com' version='1.0' xml:lang='en'>`
+	const featuresBlock = `<stream:features><starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'><required/></starttls><mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><mechanism>SCRAM-SHA-1</mechanism><mechanism>PLAIN</mechanism></mechanisms><c xmlns='http://jabber.org/protocol/caps' hash='sha-1' node='http://www.process-one.net/en/ejabberd/' ver='aIT+/ulfcbHXDKPkCA+iw9x5mU8='/></stream:features>`
+
+	listener := startSplitMockXMPPServer(t, streamOpening, featuresBlock)
+	defer listener.Close()
+
+	addr := listener.Addr().(*net.TCPAddr)
+	addrPort, err := netip.ParseAddrPort(fmt.Sprintf("127.0.0.1:%d", addr.Port))
+	require.NoError(t, err)
+
+	conn, err := net.DialTimeout("tcp", addr.String(), 5*time.Second)
+	require.NoError(t, err, "failed to connect to split mock server")
+	defer conn.Close()
+
+	p := &TCPPlugin{}
+	target := plugins.Target{
+		Address: addrPort,
+		Host:    "127.0.0.1",
+	}
+
+	svc, err := p.Run(conn, 5*time.Second, target)
+	assert.NoError(t, err, "Run() should not error on split response")
+	require.NotNil(t, svc, "Run() should return a service even when features arrive in second TCP segment")
+
+	xmppSvc, ok := svc.Metadata().(plugins.ServiceXMPP)
+	require.True(t, ok, "service metadata should be ServiceXMPP")
+
+	assert.Equal(t, "abc123", xmppSvc.StreamID, "stream ID should be extracted from first segment")
+	assert.Equal(t, "example.com", xmppSvc.ServerFrom, "server from should be extracted from first segment")
+	assert.Equal(t, "required", xmppSvc.TLSSupport,
+		"TLS support should be populated from features in second segment")
+	assert.Equal(t, []string{"SCRAM-SHA-1", "PLAIN"}, xmppSvc.AuthMechanisms,
+		"auth mechanisms should be populated from features in second segment")
+	assert.Equal(t, "ejabberd", xmppSvc.ServerSoftware,
+		"server software should be identified from caps in second segment")
+}
+
 // TestIntegrationDocker runs the XMPP plugin against real XMPP servers
 // running in Docker containers. These tests are skipped when -short is used.
 func TestIntegrationDocker(t *testing.T) {

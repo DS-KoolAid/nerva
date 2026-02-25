@@ -256,6 +256,15 @@ func (p *TCPPlugin) Run(conn net.Conn, timeout time.Duration, target plugins.Tar
 		return nil, nil
 	}
 
+	// Some servers send <stream:stream> and <stream:features> in separate TCP
+	// segments. If the features block is not in the first read, try a second read.
+	if !strings.Contains(string(response), "<stream:features") {
+		more, err := utils.Recv(conn, timeout)
+		if err == nil && len(more) > 0 {
+			response = append(response, more...)
+		}
+	}
+
 	// Phase 2: Enrich - parse features from the response.
 	respStr := string(response)
 
