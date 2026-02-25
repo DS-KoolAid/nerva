@@ -154,6 +154,7 @@ const (
 	ProtoTURN             = "turn"
 	ProtoVNC              = "vnc"
 	ProtoWireGuard        = "wireguard"
+	ProtoXMPP             = "xmpp"
 	ProtoX11              = "x11"
 	ProtoX2AP             = "x2ap"
 	ProtoZabbixAgent      = "zabbix-agent"
@@ -290,6 +291,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoX2AP:
 		var p ServiceX2AP
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoXMPP:
+		var p ServiceXMPP
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoTelnet:
@@ -1190,6 +1195,20 @@ type ServiceWireGuard struct {
 }
 
 func (e ServiceWireGuard) Type() string { return ProtoWireGuard }
+
+type ServiceXMPP struct {
+	StreamID       string   `json:"streamId,omitempty"`
+	ServerFrom     string   `json:"serverFrom,omitempty"`
+	AuthMechanisms []string `json:"authMechanisms,omitempty"`
+	TLSSupport     string   `json:"tlsSupport,omitempty"`
+	Compression    []string `json:"compression,omitempty"`
+	CapsNode       string   `json:"capsNode,omitempty"`
+	CapsVer        string   `json:"capsVer,omitempty"`
+	ServerSoftware string   `json:"serverSoftware,omitempty"`
+	CPEs           []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceXMPP) Type() string { return ProtoXMPP }
 
 type ServiceOMRONFINS struct {
 	ControllerModel   string   `json:"controllerModel,omitempty"`
