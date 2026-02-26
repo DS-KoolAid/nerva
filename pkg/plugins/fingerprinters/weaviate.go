@@ -67,6 +67,12 @@ func (f *WeaviateFingerprinter) Fingerprint(resp *http.Response, body []byte) (*
 		return nil, nil
 	}
 
+	// Weaviate always returns a URL as hostname (e.g., "http://[::]:8080").
+	// Reject bare hostnames to prevent false positives from generic APIs.
+	if !strings.HasPrefix(meta.Hostname, "http://") && !strings.HasPrefix(meta.Hostname, "https://") {
+		return nil, nil
+	}
+
 	// Validate: version must match semver pattern (prevents false positives)
 	match := weaviateSemverPattern.FindString(meta.Version)
 	if match == "" {

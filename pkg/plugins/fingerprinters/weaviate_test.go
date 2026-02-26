@@ -227,6 +227,10 @@ func TestWeaviateFingerprinter_Fingerprint_MissingFields(t *testing.T) {
 				"version": "unknown"
 			}`,
 		},
+		{
+			name: "hostname not a URL (generic API false positive)",
+			body: `{"hostname": "prod-api-01", "version": "2.0.0", "service": "inventory"}`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -256,8 +260,8 @@ func TestWeaviateFingerprinter_Fingerprint_NotWeaviate(t *testing.T) {
 		},
 	}
 
-	// Valid JSON but not Weaviate format (no hostname or version)
-	body := []byte(`{"status": "ok", "version": "1.0.0", "application": "custom-api"}`)
+	// Valid JSON with hostname and version but hostname is not a URL — not Weaviate
+	body := []byte(`{"hostname": "my-server", "version": "1.0.0", "status": "ok"}`)
 
 	result, err := fp.Fingerprint(resp, body)
 
