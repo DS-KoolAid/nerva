@@ -31,6 +31,7 @@ type weaviateMetaResponse struct {
 	Hostname string                 `json:"hostname"`
 	Version  string                 `json:"version"`
 	Modules  map[string]interface{} `json:"modules"`
+	GitHash  string                 `json:"gitHash"`
 }
 
 // weaviateSemverPattern matches the leading X.Y.Z part of a version string.
@@ -90,10 +91,14 @@ func (f *WeaviateFingerprinter) Fingerprint(resp *http.Response, body []byte) (*
 	sort.Strings(moduleNames)
 
 	metadata := map[string]any{
-		"hostname": meta.Hostname,
+		"hostname":        meta.Hostname,
+		"anonymousAccess": true,
 	}
 	if len(moduleNames) > 0 {
 		metadata["modules"] = moduleNames
+	}
+	if meta.GitHash != "" {
+		metadata["gitHash"] = meta.GitHash
 	}
 
 	return &FingerprintResult{

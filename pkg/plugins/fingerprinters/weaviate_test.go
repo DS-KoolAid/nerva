@@ -89,6 +89,7 @@ func TestWeaviateFingerprinter_Fingerprint_ValidWeaviate(t *testing.T) {
 		expectedCPE     string
 		expectedModules []string
 		hasModules      bool
+		expectedGitHash string
 	}{
 		{
 			name: "Weaviate 1.24.1 with modules",
@@ -104,13 +105,15 @@ func TestWeaviateFingerprinter_Fingerprint_ValidWeaviate(t *testing.T) {
 						"name": "OpenAI"
 					}
 				},
-				"version": "1.24.1"
+				"version": "1.24.1",
+				"gitHash": "abc123def"
 			}`,
 			expectedTech:    "weaviate",
 			expectedVersion: "1.24.1",
 			expectedCPE:     "cpe:2.3:a:weaviate:weaviate:1.24.1:*:*:*:*:*:*:*",
 			expectedModules: []string{"generative-openai", "text2vec-openai"},
 			hasModules:      true,
+			expectedGitHash: "abc123def",
 		},
 		{
 			name: "Weaviate 1.23.0 minimal (no modules)",
@@ -124,6 +127,7 @@ func TestWeaviateFingerprinter_Fingerprint_ValidWeaviate(t *testing.T) {
 			expectedCPE:     "cpe:2.3:a:weaviate:weaviate:1.23.0:*:*:*:*:*:*:*",
 			expectedModules: nil,
 			hasModules:      false,
+			expectedGitHash: "",
 		},
 		{
 			name: "Weaviate with rc suffix (1.25.0-rc1 cleaned to 1.25.0)",
@@ -132,13 +136,15 @@ func TestWeaviateFingerprinter_Fingerprint_ValidWeaviate(t *testing.T) {
 				"modules": {
 					"text2vec-contextionary": {}
 				},
-				"version": "1.25.0-rc1"
+				"version": "1.25.0-rc1",
+				"gitHash": "ff00ff"
 			}`,
 			expectedTech:    "weaviate",
 			expectedVersion: "1.25.0",
 			expectedCPE:     "cpe:2.3:a:weaviate:weaviate:1.25.0:*:*:*:*:*:*:*",
 			expectedModules: []string{"text2vec-contextionary"},
 			hasModules:      true,
+			expectedGitHash: "ff00ff",
 		},
 	}
 
@@ -165,11 +171,22 @@ func TestWeaviateFingerprinter_Fingerprint_ValidWeaviate(t *testing.T) {
 			// Hostname is always present in metadata
 			assert.Equal(t, "http://[::]:8080", result.Metadata["hostname"])
 
+			// Anonymous access is always noted
+			assert.Equal(t, true, result.Metadata["anonymousAccess"])
+
 			if tt.hasModules {
 				assert.Equal(t, tt.expectedModules, result.Metadata["modules"])
 			} else {
 				_, hasModulesKey := result.Metadata["modules"]
 				assert.False(t, hasModulesKey, "modules key should not be present when no modules loaded")
+			}
+
+			// gitHash should only be present when non-empty
+			if tt.expectedGitHash != "" {
+				assert.Equal(t, tt.expectedGitHash, result.Metadata["gitHash"])
+			} else {
+				_, hasGitHash := result.Metadata["gitHash"]
+				assert.False(t, hasGitHash, "gitHash key should not be present when empty")
 			}
 		})
 	}
