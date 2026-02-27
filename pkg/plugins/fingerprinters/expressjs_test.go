@@ -372,7 +372,8 @@ func TestBuildExpressCPE(t *testing.T) {
 }
 
 func TestExpressFingerprinter_Integration(t *testing.T) {
-	// Clear registry
+	saved := httpFingerprinters
+	t.Cleanup(func() { httpFingerprinters = saved })
 	httpFingerprinters = nil
 
 	// Register explicitly for the test

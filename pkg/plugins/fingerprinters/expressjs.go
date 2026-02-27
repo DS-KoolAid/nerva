@@ -98,7 +98,7 @@ var expressVersionRegex = regexp.MustCompile(`express@(\d+\.\d+\.\d+)`)
 
 // expressStackTraceRegex detects stack trace lines in dev mode error responses.
 // Matches patterns like "at /path/to/file.js:12:15" or "at Function.handle (/path/)"
-var expressStackTraceRegex = regexp.MustCompile(`(?i)\bat\s+(?:\S+\s+)?\(?\S+\.js:\d+`)
+var expressStackTraceRegex = regexp.MustCompile(`\bat\s+(?:\S+\s+)?\(?\S+\.js:\d+`)
 
 // ExpressFingerprinter detects Express.js applications via X-Powered-By header
 // and default error page body patterns.
