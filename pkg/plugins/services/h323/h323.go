@@ -371,10 +371,30 @@ func extractH225VendorInfo(msgType byte, uuData []byte) *h225VendorInfo {
 	// Position after protocol version
 	i := pverOffset + 1
 
-	// Vendor ID extraction depends on message type
+	// Vendor ID extraction depends on message type.
+	// H.225.0 messages use ASN.1 PER (Packed Encoding Rules), where field presence
+	// and layout vary by message type and protocol version. The byte markers below
+	// identify specific PER-encoded structures:
+	//
+	// 0x20 0x00: In Alerting/CallProceeding with pver==2, this is the PER bit-field
+	//            prefix for EndpointType containing a VendorIdentifier. The vendor ID
+	//            (4-byte T.35 manufacturer code) follows immediately at offset +2.
+	//
+	// 0xc0:      PER encoding of the H225-EndpointType sequence with the optional
+	//            vendor field present. In PER, leading bits indicate which optional
+	//            fields are included; 0xc0 (binary 11000000) signals that the first
+	//            two optional fields (vendor + terminal capability) are present.
+	//            The 4-byte vendor ID follows at offset +2 after the 0xc0 byte.
+	//
+	// +7 skip:   When the byte after protocol version is NOT 0xc0, the response
+	//            contains additional PER-encoded fields (e.g., destination info,
+	//            call signaling address) before the vendor block. The 7-byte skip
+	//            advances past these common fixed-length PER structures.
 	switch msgType {
 	case q931Alerting, q931CallProceeding:
-		// Special case: pver==2 with \x20\x00 prefix
+		// PER special case: protocol version 2 uses a shorter encoding where
+		// 0x20 0x00 directly precedes the 4-byte T.35 vendor ID without the
+		// 0xc0 EndpointType wrapper used in later versions.
 		if pver == 2 && i+2 <= len(uuData) &&
 			uuData[i] == 0x20 && uuData[i+1] == 0x00 {
 			if i+6 <= len(uuData) {
@@ -382,26 +402,29 @@ func extractH225VendorInfo(msgType byte, uuData []byte) *h225VendorInfo {
 			}
 			return info
 		}
-		// Look for \xc0 marker indicating vendor info
+		// Skip variable-length PER fields (destination/source address info)
+		// to reach the 0xc0 EndpointType marker containing vendor data.
 		if i+2 <= len(uuData) && uuData[i+1] != 0xc0 {
 			i += 7
 		}
 		if i+2 > len(uuData) || uuData[i+1] != 0xc0 {
 			return info
 		}
-		i += 2
+		i += 2 // advance past the type byte + 0xc0 marker to vendor ID
 
 	case q931Connect:
+		// Connect messages: a leading 0x00 byte means no endpoint info follows.
 		if i >= len(uuData) || uuData[i] == 0x00 {
 			return info
 		}
+		// Skip variable-length PER fields to reach 0xc0 EndpointType marker.
 		if i+2 <= len(uuData) && uuData[i+1] != 0xc0 {
 			i += 7
 		}
 		if i+2 > len(uuData) || uuData[i+1] != 0xc0 {
 			return info
 		}
-		i += 2
+		i += 2 // advance past the type byte + 0xc0 marker to vendor ID
 
 	default:
 		return info // ReleaseComplete etc. - no vendor info expected
@@ -592,7 +615,7 @@ func normalizeForCPE(s string) string {
 func extractMetadata(response []byte) plugins.ServiceH323 {
 	msg := parseQ931(response)
 
-	var vendor, product, version, terminalType string
+	var vendor, product, version string
 
 	if msg != nil {
 		// Primary: Structured H.225.0 extraction from User-User IE
@@ -643,7 +666,6 @@ func extractMetadata(response []byte) plugins.ServiceH323 {
 		VendorID:     vendor,
 		ProductName:  product,
 		Version:      version,
-		TerminalType: terminalType,
 		CPEs:         cpes,
 	}
 }
