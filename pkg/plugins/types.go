@@ -136,6 +136,7 @@ const (
 	ProtoRsync            = "rsync"
 	ProtoRtsp             = "rtsp"
 	ProtoS7comm           = "s7comm"
+	ProtoSAPNetWeaver     = "sap-netweaver"
 	ProtoSCCP             = "sccp"
 	ProtoSGsAP            = "sgsap"
 	ProtoSIP              = "sip"
