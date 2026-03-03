@@ -40,6 +40,7 @@ type ScanPool struct {
 	verbose     bool
 	completed   atomic.Int64
 	failed      atomic.Int64
+	active      atomic.Int64
 	total       atomic.Int64
 }
 
@@ -75,6 +76,7 @@ func (p *ScanPool) Run(ctx context.Context, targets []plugins.Target, fn scanFun
 
 	p.completed.Store(0)
 	p.failed.Store(0)
+	p.active.Store(0)
 	p.total.Store(int64(len(targets)))
 
 	bufSize := len(targets)
@@ -149,7 +151,9 @@ func (p *ScanPool) processTarget(ctx context.Context, target plugins.Target, fn 
 		}
 	}
 
+	p.active.Add(1)
 	services, err := fn(target)
+	p.active.Add(-1)
 	if err != nil {
 		p.failed.Add(1)
 		if p.verbose {
@@ -184,8 +188,10 @@ func (p *ScanPool) startProgressTicker(ctx context.Context, interval time.Durati
 				failed := p.failed.Load()
 				total := p.total.Load()
 				remaining := total - completed - failed
-				fmt.Fprintf(log.Writer(), "[progress] %d/%d completed, %d failed, %d remaining\n",
-					completed, total, failed, remaining)
+				active := p.active.Load()
+				idle := int64(p.workers) - active
+				fmt.Fprintf(log.Writer(), "[progress] %d/%d completed, %d failed, %d remaining | workers: %d active, %d idle\n",
+					completed, total, failed, remaining, active, idle)
 			}
 		}
 	}()
@@ -196,7 +202,9 @@ func (p *ScanPool) startProgressTicker(ctx context.Context, interval time.Durati
 		failed := p.failed.Load()
 		total := p.total.Load()
 		remaining := total - completed - failed
-		fmt.Fprintf(log.Writer(), "[progress] %d/%d completed, %d failed, %d remaining\n",
-			completed, total, failed, remaining)
+		active := p.active.Load()
+		idle := int64(p.workers) - active
+		fmt.Fprintf(log.Writer(), "[progress] %d/%d completed, %d failed, %d remaining | workers: %d active, %d idle\n",
+			completed, total, failed, remaining, active, idle)
 	}
 }
