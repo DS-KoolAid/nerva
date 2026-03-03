@@ -162,6 +162,19 @@ nerva -t telecom-server:3868 -S
 nerva -l large-target-list.txt --fast --json
 ```
 
+**Parallel scanning with rate limiting:**
+
+```sh
+nerva -l large-target-list.txt -W 100 -H 5 -R 50 -v
+```
+
+**Graceful shutdown** (Ctrl+C returns partial results):
+
+```sh
+nerva -l huge-target-list.txt -W 50 -v
+# Press Ctrl+C to stop — collected results are still printed
+```
+
 ## Supported Protocols
 
 **120+ service detection plugins** across TCP, UDP, and SCTP:
