@@ -70,6 +70,8 @@ func (p *ScanPool) Run(ctx context.Context, targets []plugins.Target, fn scanFun
 		return nil, nil
 	}
 
+	p.completed.Store(0)
+	p.failed.Store(0)
 	p.total = int64(len(targets))
 
 	bufSize := len(targets)

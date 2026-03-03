@@ -34,7 +34,8 @@ type Config struct {
 	// Prints logging messages to stderr
 	Verbose bool
 
-	// Number of concurrent scan workers (default 50, minimum 1)
+	// Number of concurrent scan workers. Values <= 0 are treated as 1 (sequential).
+	// The CLI defaults this to 50 via --workers.
 	Workers int
 
 	// Max concurrent connections per host IP (0 = unlimited)

@@ -25,6 +25,11 @@ import (
 func SCTPScan(ctx context.Context, targets []plugins.Target, config Config) ([]plugins.Service, error) {
 	var results []plugins.Service
 	for _, target := range targets {
+		select {
+		case <-ctx.Done():
+			return results, nil
+		default:
+		}
 		result, err := config.SCTPScanTarget(target)
 		if err == nil && result != nil {
 			results = append(results, *result)
@@ -40,6 +45,11 @@ func SCTPScan(ctx context.Context, targets []plugins.Target, config Config) ([]p
 func UDPScan(ctx context.Context, targets []plugins.Target, config Config) ([]plugins.Service, error) {
 	var results []plugins.Service
 	for _, target := range targets {
+		select {
+		case <-ctx.Done():
+			return results, nil
+		default:
+		}
 		result, err := config.UDPScanTarget(target)
 		if err == nil && result != nil {
 			results = append(results, *result)

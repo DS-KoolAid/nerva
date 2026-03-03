@@ -88,7 +88,7 @@ func init() {
 	rootCmd.PersistentFlags().
 		IntVarP(&config.timeout, "timeout", "w", 2000, "timeout (milliseconds)")
 	rootCmd.PersistentFlags().IntVarP(&config.workers, "workers", "W", 50, "number of concurrent scan workers")
-	rootCmd.PersistentFlags().IntVarP(&config.maxHostConn, "max-host-conn", "H", 5, "max concurrent connections per host IP (0=unlimited)")
+	rootCmd.PersistentFlags().IntVarP(&config.maxHostConn, "max-host-conn", "H", 0, "max concurrent connections per host IP (0=unlimited)")
 	rootCmd.PersistentFlags().Float64VarP(&config.rateLimit, "rate-limit", "R", 0, "max scans per second (0=unlimited)")
 	rootCmd.PersistentFlags().BoolVarP(&config.showCapabilities, "capabilities", "c", false, "list available capabilities and exit")
 }
