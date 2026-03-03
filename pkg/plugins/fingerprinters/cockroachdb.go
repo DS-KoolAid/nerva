@@ -79,17 +79,23 @@ func (f *CockroachDBFingerprinter) Fingerprint(resp *http.Response, body []byte)
 		return nil, nil
 	}
 
-	// Extract version from first node's build_tag
+	// Extract version from first node
 	firstNode := cockroachResponse.Nodes[0]
 	buildTag := firstNode.BuildTag
 
-	// build_tag must be present
-	if buildTag == "" {
-		return nil, nil
+	var version string
+	if buildTag != "" {
+		// Primary: Extract version from build_tag by stripping leading "v"
+		version = strings.TrimPrefix(buildTag, "v")
+	} else if firstNode.ServerVersion.Major > 0 {
+		// Fallback: Construct version from ServerVersion struct
+		version = fmt.Sprintf("%d.%d.%d",
+			firstNode.ServerVersion.Major,
+			firstNode.ServerVersion.Minor,
+			firstNode.ServerVersion.Patch)
+	} else {
+		return nil, nil // No version information available
 	}
-
-	// Extract version by stripping leading "v" from build_tag
-	version := strings.TrimPrefix(buildTag, "v")
 
 	// Validate version format to prevent CPE injection
 	if !cockroachDBVersionRegex.MatchString(version) {

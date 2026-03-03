@@ -251,7 +251,7 @@ func TestCockroachDBFingerprinter_Fingerprint_MissingNodes(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestCockroachDBFingerprinter_Fingerprint_MissingBuildTag(t *testing.T) {
+func TestCockroachDBFingerprinter_Fingerprint_MissingBuildTag_FallbackToServerVersion(t *testing.T) {
 	fp := &CockroachDBFingerprinter{}
 	resp := &http.Response{
 		StatusCode: 200,
@@ -276,8 +276,41 @@ func TestCockroachDBFingerprinter_Fingerprint_MissingBuildTag(t *testing.T) {
 
 	result, err := fp.Fingerprint(resp, body)
 
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "cockroachdb", result.Technology)
+	assert.Equal(t, "26.1.0", result.Version)
+	assert.Contains(t, result.CPEs, "cpe:2.3:a:cockroachdb:cockroachdb:26.1.0:*:*:*:*:*:*:*")
+}
+
+func TestCockroachDBFingerprinter_Fingerprint_NoVersionInfo(t *testing.T) {
+	fp := &CockroachDBFingerprinter{}
+	resp := &http.Response{
+		StatusCode: 200,
+		Header: http.Header{
+			"Content-Type": []string{"application/json"},
+		},
+	}
+
+	// No build_tag and ServerVersion.Major is 0
+	body := []byte(`{
+		"nodes": [
+			{
+				"node_id": 1,
+				"ServerVersion": {
+					"major": 0,
+					"minor": 0,
+					"patch": 0,
+					"internal": 0
+				}
+			}
+		]
+	}`)
+
+	result, err := fp.Fingerprint(resp, body)
+
 	assert.Nil(t, result)
-	assert.Nil(t, err) // Missing build_tag means we can't extract version
+	assert.Nil(t, err) // No version info available
 }
 
 func TestCockroachDBFingerprinter_Fingerprint_CPEInjectionPrevention(t *testing.T) {
