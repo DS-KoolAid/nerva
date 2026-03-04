@@ -15,7 +15,14 @@
 package qdrant
 
 import (
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/netip"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/praetorian-inc/nerva/pkg/plugins"
 )
@@ -128,4 +135,165 @@ func TestQdrantPluginInterface(t *testing.T) {
 			t.Error("PortPriority(8080) = true, want false")
 		}
 	})
+}
+
+// TestDetectQdrant_Integration tests the full DetectQdrant function with mock HTTP server
+func TestDetectQdrant_Integration(t *testing.T) {
+	tests := []struct {
+		name         string
+		response     string
+		statusCode   int
+		wantDetected bool
+		wantVersion  string
+	}{
+		{
+			name:         "valid qdrant JSON response",
+			response:     `{"title":"qdrant - vector search engine","version":"1.7.4"}`,
+			statusCode:   http.StatusOK,
+			wantDetected: true,
+			wantVersion:  "1.7.4",
+		},
+		{
+			name:         "qdrant without version",
+			response:     `{"title":"qdrant - vector search engine"}`,
+			statusCode:   http.StatusOK,
+			wantDetected: true,
+			wantVersion:  "",
+		},
+		{
+			name:         "non-qdrant JSON response",
+			response:     `{"title":"other service","version":"1.0.0"}`,
+			statusCode:   http.StatusOK,
+			wantDetected: false,
+			wantVersion:  "",
+		},
+		{
+			name:         "non-qdrant service",
+			response:     `{"status":"ok"}`,
+			statusCode:   http.StatusOK,
+			wantDetected: false,
+			wantVersion:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test server
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.statusCode)
+				w.Write([]byte(tt.response))
+			}))
+			defer server.Close()
+
+			// Parse server address
+			addr := strings.TrimPrefix(server.URL, "http://")
+			host, portStr, _ := net.SplitHostPort(addr)
+			port, _ := strconv.Atoi(portStr)
+
+			// Create connection to test server
+			conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
+			if err != nil {
+				t.Fatalf("Failed to connect to test server: %v", err)
+			}
+			defer conn.Close()
+
+			// Create target
+			ip := net.ParseIP(host)
+			if ip == nil {
+				ip = net.ParseIP("127.0.0.1")
+			}
+			netAddr, _ := netip.AddrFromSlice(ip.To4())
+			target := plugins.Target{
+				Address: netip.AddrPortFrom(netAddr, uint16(port)),
+			}
+
+			// Call DetectQdrant
+			version, detected, _ := DetectQdrant(conn, 5*time.Second, target)
+
+			if detected != tt.wantDetected {
+				t.Errorf("DetectQdrant() detected = %v, want %v", detected, tt.wantDetected)
+			}
+			if version != tt.wantVersion {
+				t.Errorf("DetectQdrant() version = %q, want %q", version, tt.wantVersion)
+			}
+		})
+	}
+}
+
+// TestDetectQdrant_FallbackStringMatch tests the fallback detection when JSON parsing fails
+func TestDetectQdrant_FallbackStringMatch(t *testing.T) {
+	tests := []struct {
+		name         string
+		response     string
+		wantDetected bool
+		wantVersion  string
+	}{
+		{
+			name:         "non-JSON response containing qdrant",
+			response:     `<html><body>Welcome to Qdrant vector database</body></html>`,
+			wantDetected: true,
+			wantVersion:  "",
+		},
+		{
+			name:         "non-JSON with version in text",
+			response:     `Qdrant server "version":"1.8.0" running`,
+			wantDetected: true,
+			wantVersion:  "1.8.0",
+		},
+		{
+			name:         "non-JSON without qdrant mention",
+			response:     `<html><body>Welcome to our service</body></html>`,
+			wantDetected: false,
+			wantVersion:  "",
+		},
+		{
+			name:         "malformed JSON with qdrant",
+			response:     `{"title": "qdrant", invalid json here`,
+			wantDetected: true,
+			wantVersion:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test server
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(tt.response))
+			}))
+			defer server.Close()
+
+			// Parse server address
+			addr := strings.TrimPrefix(server.URL, "http://")
+			host, portStr, _ := net.SplitHostPort(addr)
+			port, _ := strconv.Atoi(portStr)
+
+			// Create connection to test server
+			conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
+			if err != nil {
+				t.Fatalf("Failed to connect to test server: %v", err)
+			}
+			defer conn.Close()
+
+			// Create target
+			ip := net.ParseIP(host)
+			if ip == nil {
+				ip = net.ParseIP("127.0.0.1")
+			}
+			netAddr, _ := netip.AddrFromSlice(ip.To4())
+			target := plugins.Target{
+				Address: netip.AddrPortFrom(netAddr, uint16(port)),
+			}
+
+			// Call DetectQdrant
+			version, detected, _ := DetectQdrant(conn, 5*time.Second, target)
+
+			if detected != tt.wantDetected {
+				t.Errorf("DetectQdrant() detected = %v, want %v", detected, tt.wantDetected)
+			}
+			if version != tt.wantVersion {
+				t.Errorf("DetectQdrant() version = %q, want %q", version, tt.wantVersion)
+			}
+		})
+	}
 }
