@@ -17,12 +17,14 @@ package scan
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"net"
 	"net/netip"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/ory/dockertest/v3"
 	"github.com/praetorian-inc/nerva/pkg/plugins"
 )
 
@@ -240,5 +242,121 @@ func TestIntegration_ScanPool_RateLimitedMockServer(t *testing.T) {
 			minElapsed,
 			elapsed,
 		)
+	}
+}
+
+// TestIntegration_ScanPool_DockerContainers starts 5 real nginx:alpine containers
+// via dockertest, builds targets from their host-mapped ports, and runs the pool
+// twice — Workers=5 (parallel) and Workers=1 (sequential) — asserting that both
+// runs detect all 5 containers and return identical result counts.
+func TestIntegration_ScanPool_DockerContainers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping Docker integration test in short mode")
+	}
+
+	pool, err := dockertest.NewPool("")
+	if err != nil {
+		t.Fatalf("could not connect to Docker: %v", err)
+	}
+
+	const numContainers = 5
+	targets := make([]plugins.Target, numContainers)
+
+	for i := 0; i < numContainers; i++ {
+		resource, err := pool.RunWithOptions(&dockertest.RunOptions{
+			Repository:   "nginx",
+			Tag:          "alpine",
+			ExposedPorts: []string{"80/tcp"},
+		})
+		if err != nil {
+			t.Fatalf("could not start nginx container %d: %v", i, err)
+		}
+		// Capture resource in loop-local variable for the defer closure.
+		res := resource
+		t.Cleanup(func() { _ = pool.Purge(res) })
+
+		hostPort := resource.GetHostPort("80/tcp")
+
+		// hostPort is "host:port". Docker may report "localhost" or "0.0.0.0";
+		// normalise to 127.0.0.1 so netip.ParseAddrPort succeeds.
+		host, port, err := net.SplitHostPort(hostPort)
+		if err != nil {
+			t.Fatalf("could not split host:port %q: %v", hostPort, err)
+		}
+		if host == "localhost" || host == "0.0.0.0" || host == "::" {
+			host = "127.0.0.1"
+		}
+		ap, err := netip.ParseAddrPort(fmt.Sprintf("%s:%s", host, port))
+		if err != nil {
+			t.Fatalf("could not parse AddrPort %s:%s: %v", host, port, err)
+		}
+		targets[i] = plugins.Target{Address: ap}
+
+		// Wait until nginx is fully ready to serve HTTP responses (not just TCP).
+		if err := pool.Retry(func() error {
+			conn, err := net.DialTimeout("tcp", ap.String(), 1*time.Second)
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+			conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+			fmt.Fprintf(conn, "GET / HTTP/1.0\r\nHost: localhost\r\n\r\n")
+			sc := bufio.NewScanner(conn)
+			if !sc.Scan() {
+				return fmt.Errorf("no HTTP response yet")
+			}
+			return nil
+		}); err != nil {
+			t.Fatalf("nginx container %d never became ready: %v", i, err)
+		}
+	}
+
+	// scanFunc performs a real TCP dial, sends an HTTP/1.0 request, and reads
+	// the first response line to confirm nginx replied.
+	fn := func(target plugins.Target) ([]plugins.Service, error) {
+		addr := net.JoinHostPort(target.Address.Addr().String(), fmt.Sprintf("%d", target.Address.Port()))
+		conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+		if err != nil {
+			return nil, err
+		}
+		defer conn.Close()
+		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		// Send HTTP request to trigger response.
+		fmt.Fprintf(conn, "GET / HTTP/1.0\r\nHost: localhost\r\n\r\n")
+		scanner := bufio.NewScanner(conn)
+		if scanner.Scan() {
+			return []plugins.Service{{
+				IP:       target.Address.Addr().String(),
+				Port:     int(target.Address.Port()),
+				Protocol: "http",
+			}}, nil
+		}
+		return nil, fmt.Errorf("no response from %s", addr)
+	}
+
+	// Run with Workers=5 (parallel).
+	parallelPool := NewScanPool(Config{Workers: 5})
+	parallelResults, err := parallelPool.Run(context.Background(), targets, fn)
+	if err != nil {
+		t.Fatalf("parallel Run returned error: %v", err)
+	}
+	if len(parallelResults) != numContainers {
+		t.Errorf("parallel: expected %d detected services, got %d", numContainers, len(parallelResults))
+	}
+
+	// Run SAME targets with Workers=1 (sequential).
+	sequentialPool := NewScanPool(Config{Workers: 1})
+	sequentialResults, err := sequentialPool.Run(context.Background(), targets, fn)
+	if err != nil {
+		t.Fatalf("sequential Run returned error: %v", err)
+	}
+	if len(sequentialResults) != numContainers {
+		t.Errorf("sequential: expected %d detected services, got %d", numContainers, len(sequentialResults))
+	}
+
+	// Both runs must produce identical result counts.
+	if len(parallelResults) != len(sequentialResults) {
+		t.Errorf("parallel and sequential result counts differ: parallel=%d sequential=%d",
+			len(parallelResults), len(sequentialResults))
 	}
 }
