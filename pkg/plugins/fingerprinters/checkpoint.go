@@ -48,8 +48,15 @@ func init() {
 // Accepts versions like: R81, R81.10, R81.20, R80.40, R77.30
 var gaiaVersionRegex = regexp.MustCompile(`^R\d+(\.\d+)?$`)
 
+// gaiaVersionJSPattern extracts Gaia OS version from JavaScript variable in the
+// Gaia Portal login page. Real devices embed the version as a JS variable:
+//
+//	var version='R81.20';var formAction="/cgi-bin/home.tcl";
+var gaiaVersionJSPattern = regexp.MustCompile(`(?i)var\s+version\s*=\s*'(R\d+(?:\.\d+)?)'`)
+
 // gaiaVersionExtract extracts Gaia OS version from response body.
-// Looks for patterns like "Gaia R81.20", "Check Point Gaia R80.40"
+// Looks for patterns like "Gaia R81.20", "Check Point Gaia R80.40".
+// Used as a fallback when gaiaVersionJSPattern does not match.
 var gaiaVersionExtract = regexp.MustCompile(`(?i)Gaia\s+(R\d+(?:\.\d+)?)`)
 
 // Check Point body detection patterns
@@ -199,7 +206,19 @@ func detectCheckPointProduct(bodyStr string) string {
 }
 
 // extractGaiaVersion extracts the Gaia OS version from response body.
+// It tries gaiaVersionJSPattern first (matches real-world Gaia Portal login pages
+// that embed the version as "var version='R81.20'"), then falls back to
+// gaiaVersionExtract (matches "Gaia R81.20" text patterns).
 func extractGaiaVersion(body []byte) string {
+	// Try JS variable pattern first — most common on real devices
+	if matches := gaiaVersionJSPattern.FindSubmatch(body); len(matches) >= 2 {
+		version := string(matches[1])
+		if gaiaVersionRegex.MatchString(version) {
+			return version
+		}
+	}
+
+	// Fall back to "Gaia R81.20" text pattern
 	matches := gaiaVersionExtract.FindSubmatch(body)
 	if len(matches) < 2 {
 		return ""

@@ -357,6 +357,16 @@ func TestExtractGaiaVersion(t *testing.T) {
 			want: "R77.30",
 		},
 		{
+			name: "extracts R81.20 from JS variable",
+			body: `<script>var version='R81.20';var formAction="/cgi-bin/home.tcl";</script>`,
+			want: "R81.20",
+		},
+		{
+			name: "extracts version from full real Gaia Portal JS block",
+			body: `<script type="text/javascript">var errMsgText = "";var bannerMsgText = "";var user = "";var hostname='';var twofaConf='';var version='R81.20';var formAction="/cgi-bin/home.tcl";</script>`,
+			want: "R81.20",
+		},
+		{
 			name: "returns empty for no version",
 			body: `<html><body>Check Point Portal</body></html>`,
 			want: "",
@@ -417,6 +427,82 @@ func TestCheckPointFingerprinter_VersionRegexValidation(t *testing.T) {
 
 // TestCheckPointFingerprinter_ShodanVectors tests detection against real-world
 // response patterns observed via Shodan and live Check Point reconnaissance.
+func TestCheckPointFingerprinter_Fingerprint_JSVersionVar(t *testing.T) {
+	f := &CheckPointFingerprinter{}
+
+	tests := []struct {
+		name           string
+		statusCode     int
+		headers        http.Header
+		body           string
+		wantResult     bool
+		wantVersion    string
+		wantTechnology string
+	}{
+		{
+			name:       "detects Check Point Gaia Portal with JS version variable",
+			statusCode: 200,
+			headers: http.Header{
+				"Server":     []string{"CPWS"},
+				"Set-Cookie": []string{"Session=Login;path=/; secure; HttpOnly"},
+			},
+			body: `<!DOCTYPE html><HTML><HEAD>
+<meta name="others" content="WEBUI LOGIN PAGE"/><TITLE>GAiA</TITLE>
+<script type="text/javascript">var version='R81.20';var formAction="/cgi-bin/home.tcl";</script>
+</HEAD><BODY></BODY></HTML>`,
+			wantResult:     true,
+			wantVersion:    "R81.20",
+			wantTechnology: "checkpoint-gateway",
+		},
+		{
+			name:       "detects Check Point Mobile Access from redirect to sslvpn",
+			statusCode: 302,
+			headers: http.Header{
+				"Server":   []string{"CPWS"},
+				"Location": []string{"/sslvpn/Login/Login"},
+			},
+			body:           ``,
+			wantResult:     true,
+			wantVersion:    "",
+			wantTechnology: "checkpoint-gateway",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := &http.Response{
+				StatusCode: tt.statusCode,
+				Header:     tt.headers,
+			}
+			result, err := f.Fingerprint(resp, []byte(tt.body))
+
+			if err != nil {
+				t.Errorf("Fingerprint() error = %v", err)
+				return
+			}
+
+			if tt.wantResult && result == nil {
+				t.Error("Fingerprint() returned nil, expected result")
+				return
+			}
+
+			if !tt.wantResult && result != nil {
+				t.Errorf("Fingerprint() returned result, expected nil")
+				return
+			}
+
+			if result != nil {
+				if result.Technology != tt.wantTechnology {
+					t.Errorf("Technology = %q, want %q", result.Technology, tt.wantTechnology)
+				}
+				if tt.wantVersion != "" && result.Version != tt.wantVersion {
+					t.Errorf("Version = %q, want %q", result.Version, tt.wantVersion)
+				}
+			}
+		})
+	}
+}
+
 func TestCheckPointFingerprinter_ShodanVectors(t *testing.T) {
 	f := &CheckPointFingerprinter{}
 
@@ -507,6 +593,28 @@ func TestCheckPointFingerprinter_ShodanVectors(t *testing.T) {
 			wantTech:    "checkpoint-gateway",
 			wantVersion: "R80.40",
 			wantProduct: "Management Server",
+		},
+		{
+			name:        "Real Gaia Portal with banner message and 2FA config",
+			description: "Real-world Gaia Portal page with JS version variable",
+			statusCode:  200,
+			headers: http.Header{
+				"Server":     []string{"CPWS"},
+				"Set-Cookie": []string{"Session=Login;path=/; secure; HttpOnly"},
+			},
+			body: `<!DOCTYPE html><HTML><HEAD>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="others" content="WEBUI LOGIN PAGE"/><TITLE>GAiA</TITLE>
+<link rel="shortcut icon" href="/login/fav.ico">
+<link rel="stylesheet" type="text/css" href="/login/ext-all.css"/>
+<link rel="stylesheet" type="text/css" href="/login/login.css"/>
+<script type="text/javascript" src="/login/ext-base.js"></script>
+<script type="text/javascript" src="/login/ext-all.js"></script>
+<script type="text/javascript">var errMsgText = "";var bannerMsgText = "";var user = "";var hostname='';var twofaConf='';var version='R81.20';var formAction="/cgi-bin/home.tcl";</script>
+</HEAD><BODY></BODY></HTML>`,
+			wantTech:    "checkpoint-gateway",
+			wantVersion: "R81.20",
+			wantProduct: "Security Gateway",
 		},
 		{
 			name:        "Shodan Vector 4: Redirect to Gaia Portal",
