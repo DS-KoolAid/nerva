@@ -16,6 +16,7 @@ package fingerprinters
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -166,7 +167,7 @@ func TestTiDBFingerprinter_Fingerprint_Valid(t *testing.T) {
 			if len(result.CPEs) == 0 {
 				t.Error("Expected at least one CPE")
 			}
-			expectedCPE := "cpe:2.3:a:pingcap:tidb:" + tt.wantVersion + ":*:*:*:*:*:*:*"
+			expectedCPE := "cpe:2.3:a:pingcap:tidb:" + strings.TrimPrefix(tt.wantVersion, "v") + ":*:*:*:*:*:*:*"
 			if result.CPEs[0] != expectedCPE {
 				t.Errorf("CPE = %q, want %q", result.CPEs[0], expectedCPE)
 			}
@@ -236,7 +237,7 @@ func TestBuildTiDBCPE(t *testing.T) {
 		{
 			name:    "With version",
 			version: "v7.5.1",
-			want:    "cpe:2.3:a:pingcap:tidb:v7.5.1:*:*:*:*:*:*:*",
+			want:    "cpe:2.3:a:pingcap:tidb:7.5.1:*:*:*:*:*:*:*",
 		},
 		{
 			name:    "Empty version",

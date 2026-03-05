@@ -149,6 +149,8 @@ func (f *TiDBFingerprinter) Fingerprint(resp *http.Response, body []byte) (*Fing
 func buildTiDBCPE(version string) string {
 	if version == "" {
 		version = "*"
+	} else {
+		version = strings.TrimPrefix(version, "v")
 	}
 	return fmt.Sprintf("cpe:2.3:a:pingcap:tidb:%s:*:*:*:*:*:*:*", version)
 }
