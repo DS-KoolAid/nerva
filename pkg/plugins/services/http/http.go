@@ -226,6 +226,24 @@ func (p *HTTPSPlugin) FingerprintResponse(resp *http.Response, client *http.Clie
 	return fingerprint(resp, p.analyzer, client, baseURL, host)
 }
 
+// formatTechnologyWithVersion returns a technology string with version appended if present.
+// This matches wappalyzer's format: "tech:version" (e.g., "kubernetes:1.29.0").
+func formatTechnologyWithVersion(technology, version string) string {
+	if version == "" {
+		return technology
+	}
+	return technology + ":" + version
+}
+
+// processFingerprintResult extracts technology (with version), CPEs, and metadata from a FingerprintResult.
+func processFingerprintResult(result *fingerprinters.FingerprintResult) (string, []string, map[string]any) {
+	if result == nil {
+		return "", nil, nil
+	}
+	tech := formatTechnologyWithVersion(result.Technology, result.Version)
+	return tech, result.CPEs, result.Metadata
+}
+
 func fingerprint(resp *http.Response, analyzer *wappalyzer.Wappalyze, client *http.Client, baseURL string, host string) ([]string, []string, error) {
 	var technologies, cpes []string
 	maxResponseSize := int64(10 * 1024 * 1024) // 10MB limit
@@ -249,8 +267,9 @@ func fingerprint(resp *http.Response, analyzer *wappalyzer.Wappalyze, client *ht
 
 	// Passive fingerprinters (work on root response)
 	for _, result := range fingerprinters.RunFingerprinters(resp, data) {
-		technologies = append(technologies, result.Technology)
-		cpes = append(cpes, result.CPEs...)
+		tech, resultCPEs, _ := processFingerprintResult(result)
+		technologies = append(technologies, tech)
+		cpes = append(cpes, resultCPEs...)
 	}
 
 	// Active fingerprinters (probe specific endpoints)
@@ -287,8 +306,9 @@ func fingerprint(resp *http.Response, analyzer *wappalyzer.Wappalyze, client *ht
 			fp := fingerprinters.GetFingerprinterByName(fpName)
 			if fp != nil && fp.Match(probeResp) {
 				if result, err := fp.Fingerprint(probeResp, probeBody); err == nil && result != nil {
-					technologies = append(technologies, result.Technology)
-					cpes = append(cpes, result.CPEs...)
+					tech, resultCPEs, _ := processFingerprintResult(result)
+					technologies = append(technologies, tech)
+					cpes = append(cpes, resultCPEs...)
 				}
 			}
 		}
