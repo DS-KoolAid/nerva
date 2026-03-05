@@ -238,9 +238,7 @@ func TestBuildPortainerCPE(t *testing.T) {
 }
 
 func TestPortainerFingerprinter_Integration(t *testing.T) {
-	fp := &PortainerFingerprinter{}
-	Register(fp)
-
+	// init() already registers the fingerprinter, so just run the pipeline
 	body := []byte(`{
 		"Version": "2.21.0",
 		"InstanceID": "299ab403-70a8-4c05-92f7-bf7a994d50df"
