@@ -37,7 +37,7 @@ import (
 //
 //  1. Body Patterns: J-Web login page markers (jweb, juniper, srx references)
 //  2. Headers: Juniper-specific response headers (X-Juniper-*, antiCSRFToken)
-//  3. API: Junos REST API endpoint patterns (/api/)
+//  3. API: Junos REST API endpoint patterns (/api/, rpc-reply, junos: namespace)
 type JuniperFingerprinter struct{}
 
 func init() {
@@ -54,6 +54,16 @@ var juniperBodyPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)SRX\d{2,4}`),
 }
 
+// Junos REST API body detection patterns
+var juniperAPIPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)<rpc-reply\b`),
+	regexp.MustCompile(`(?i)xmlns:junos=`),
+	regexp.MustCompile(`(?i)<junos:version>`),
+	regexp.MustCompile(`(?i)"junos-version"\s*:`),
+	regexp.MustCompile(`(?i)"host-name"\s*:`),
+	regexp.MustCompile(`(?i)/api/`),
+}
+
 // junosVersionRegex validates Junos version format to prevent CPE injection.
 // Accepts: 21.4R3-S5, 22.2R1, 23.1R1-S1, 20.4R3-S9.2
 var junosVersionRegex = regexp.MustCompile(`^\d+\.\d+R\d+(-S\d+(\.\d+)?)?$`)
@@ -63,6 +73,14 @@ var (
 	junosVersionBodyPattern   = regexp.MustCompile(`(?i)(?:junos|junos-version|version)[:\s]+(\d+\.\d+R\d+(?:-S\d+(?:\.\d+)?)?)`)
 	junosVersionMetaPattern   = regexp.MustCompile(`(?i)<meta[^>]+content=["'](\d+\.\d+R\d+(?:-S\d+(?:\.\d+)?)?)["']`)
 	junosVersionScriptPattern = regexp.MustCompile(`(?i)(?:version|junosVersion|JUNOS_VERSION)\s*[:=]\s*["'](\d+\.\d+R\d+(?:-S\d+(?:\.\d+)?)?)["']`)
+)
+
+// Junos REST API version extraction patterns (XML and JSON)
+var (
+	junosAPIVersionXMLPattern  = regexp.MustCompile(`(?i)<junos:version>(\d+\.\d+R\d+(?:-S\d+(?:\.\d+)?)?)</junos:version>`)
+	junosAPIVersionJSONPattern = regexp.MustCompile(`(?i)"junos-version"\s*:\s*"(\d+\.\d+R\d+(?:-S\d+(?:\.\d+)?)?)"`)
+	junosAPIHostnamePattern    = regexp.MustCompile(`(?i)"host-name"\s*:\s*"([^"]+)"`)
+	junosXMLHostnamePattern    = regexp.MustCompile(`(?i)<host-name>([^<]+)</host-name>`)
 )
 
 // SRX model extraction pattern
@@ -104,6 +122,16 @@ func (f *JuniperFingerprinter) Match(resp *http.Response) bool {
 	serverHeader := strings.ToLower(resp.Header.Get("Server"))
 	if strings.Contains(serverHeader, "juniper") || strings.Contains(serverHeader, "junos") {
 		return true
+	}
+
+	// Check for Junos REST API response: XML content type with junos namespace indicators
+	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
+	if strings.Contains(contentType, "application/xml") || strings.Contains(contentType, "text/xml") {
+		// XML responses from /api/ endpoints may include X-Juniper-Version or junos namespace
+		// Content-Type alone is insufficient; require a Junos-specific header alongside it
+		if resp.Header.Get("X-Juniper-Version") != "" {
+			return true
+		}
 	}
 
 	return false
@@ -148,8 +176,17 @@ func (f *JuniperFingerprinter) Fingerprint(resp *http.Response, body []byte) (*F
 		}
 	}
 
-	// Require at least one header indicator OR body match for detection
-	if !headerMatch && !bodyMatch {
+	// Check body for Junos REST API markers
+	apiMatch := false
+	for _, pattern := range juniperAPIPatterns {
+		if pattern.MatchString(bodyStr) {
+			apiMatch = true
+			break
+		}
+	}
+
+	// Require at least one header indicator OR body match OR API match for detection
+	if !headerMatch && !bodyMatch && !apiMatch {
 		return nil, nil
 	}
 
@@ -166,6 +203,11 @@ func (f *JuniperFingerprinter) Fingerprint(resp *http.Response, body []byte) (*F
 		metadata["jweb"] = true
 	}
 
+	// Detect Junos REST API
+	if apiMatch {
+		metadata["restAPI"] = true
+	}
+
 	// Detect Dynamic VPN portal
 	if strings.Contains(bodyLower, "dynamic vpn") ||
 		strings.Contains(bodyLower, "dynamicvpn") {
@@ -175,6 +217,15 @@ func (f *JuniperFingerprinter) Fingerprint(resp *http.Response, body []byte) (*F
 	// Extract platform model (SRX300, SRX1500, etc.)
 	if matches := srxModelPattern.FindStringSubmatch(bodyStr); len(matches) > 1 {
 		metadata["model"] = matches[1]
+	}
+
+	// Extract hostname from Junos API response (JSON or XML)
+	if apiMatch {
+		if matches := junosAPIHostnamePattern.FindStringSubmatch(bodyStr); len(matches) > 1 {
+			metadata["hostname"] = matches[1]
+		} else if matches := junosXMLHostnamePattern.FindStringSubmatch(bodyStr); len(matches) > 1 {
+			metadata["hostname"] = matches[1]
+		}
 	}
 
 	// Extract cluster status from body
@@ -200,6 +251,22 @@ func (f *JuniperFingerprinter) Fingerprint(resp *http.Response, body []byte) (*F
 func extractJunosVersion(body []byte, headers http.Header) string {
 	// Check X-Juniper-Version header first (most reliable)
 	if version := headers.Get("X-Juniper-Version"); version != "" {
+		if junosVersionRegex.MatchString(version) {
+			return version
+		}
+	}
+
+	// Try Junos REST API XML version (e.g., <junos:version>21.4R3-S5</junos:version>)
+	if matches := junosAPIVersionXMLPattern.FindSubmatch(body); len(matches) > 1 {
+		version := string(matches[1])
+		if junosVersionRegex.MatchString(version) {
+			return version
+		}
+	}
+
+	// Try Junos REST API JSON version (e.g., "junos-version": "21.4R3-S5")
+	if matches := junosAPIVersionJSONPattern.FindSubmatch(body); len(matches) > 1 {
+		version := string(matches[1])
 		if junosVersionRegex.MatchString(version) {
 			return version
 		}

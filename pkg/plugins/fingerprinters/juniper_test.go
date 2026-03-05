@@ -137,6 +137,23 @@ func TestJuniperFingerprinter_Match(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			name:       "matches XML content type with X-Juniper-Version",
+			statusCode: 200,
+			headers: http.Header{
+				"Content-Type":      []string{"application/xml"},
+				"X-Juniper-Version": []string{"21.4R3-S5"},
+			},
+			want: true,
+		},
+		{
+			name:       "does not match XML content type alone",
+			statusCode: 200,
+			headers: http.Header{
+				"Content-Type": []string{"application/xml"},
+			},
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -317,6 +334,46 @@ func TestJuniperFingerprinter_Fingerprint(t *testing.T) {
 			wantTech:    "juniper-srx",
 			wantVersion: "22.2R1",
 			wantJWeb:    true,
+		},
+		{
+			name:       "detects Junos REST API XML response",
+			statusCode: 200,
+			headers: http.Header{
+				"Content-Type": []string{"application/xml"},
+			},
+			body: `<?xml version="1.0" encoding="UTF-8"?>
+<rpc-reply xmlns:junos="http://xml.juniper.net/junos/21.4R3-S5/junos">
+<software-information>
+<host-name>fw-edge-01</host-name>
+<junos:version>21.4R3-S5</junos:version>
+<product-model>SRX345</product-model>
+</software-information>
+</rpc-reply>`,
+			wantResult:  true,
+			wantTech:    "juniper-srx",
+			wantVersion: "21.4R3-S5",
+			wantModel:   "SRX345",
+		},
+		{
+			name:       "detects Junos REST API JSON response",
+			statusCode: 200,
+			headers: http.Header{
+				"Content-Type": []string{"application/json"},
+			},
+			body:        `{"software-information":{"host-name":"fw-core-01","junos-version":"22.2R1","product-model":"SRX1500"}}`,
+			wantResult:  true,
+			wantTech:    "juniper-srx",
+			wantVersion: "22.2R1",
+		},
+		{
+			name:       "detects Junos REST API with rpc-reply only",
+			statusCode: 200,
+			headers: http.Header{
+				"Content-Type": []string{"application/xml"},
+			},
+			body:       `<rpc-reply><output>some junos output</output></rpc-reply>`,
+			wantResult: true,
+			wantTech:   "juniper-srx",
 		},
 	}
 
@@ -500,6 +557,24 @@ func TestExtractJunosVersion(t *testing.T) {
 			},
 			want: "21.4R3-S5",
 		},
+		{
+			name:    "extracts from Junos API XML response",
+			body:    `<rpc-reply xmlns:junos="http://xml.juniper.net/junos/21.4R3-S5/junos"><junos:version>21.4R3-S5</junos:version></rpc-reply>`,
+			headers: http.Header{},
+			want:    "21.4R3-S5",
+		},
+		{
+			name:    "extracts from Junos API JSON response",
+			body:    `{"junos-version": "22.2R1", "host-name": "fw-01"}`,
+			headers: http.Header{},
+			want:    "22.2R1",
+		},
+		{
+			name: "prefers API XML version over general body pattern",
+			body: `<rpc-reply><junos:version>23.1R1-S1</junos:version></rpc-reply>`,
+			headers: http.Header{},
+			want: "23.1R1-S1",
+		},
 	}
 
 	for _, tt := range tests {
@@ -644,6 +719,30 @@ func TestJuniperFingerprinter_ShodanVectors(t *testing.T) {
 			wantTech:    "juniper-srx",
 			wantVersion: "23.1R1-S1",
 			wantJWeb:    true,
+		},
+		{
+			name:        "Shodan Vector 5: Junos REST API XML on /api/ endpoint",
+			description: "SRX550M with exposed REST API returning rpc-reply XML with version",
+			statusCode:  200,
+			headers: http.Header{
+				"Content-Type":              []string{"application/xml; charset=utf-8"},
+				"Strict-Transport-Security": []string{"max-age=31536000"},
+			},
+			body: `<?xml version="1.0" encoding="UTF-8"?>
+<rpc-reply xmlns:junos="http://xml.juniper.net/junos/20.4R3-S9.2/junos">
+<software-information>
+<host-name>srx-edge-gw</host-name>
+<product-model>SRX550M</product-model>
+<junos:version>20.4R3-S9.2</junos:version>
+<package-information>
+<name>junos</name>
+<comment>JUNOS Software Release [20.4R3-S9.2]</comment>
+</package-information>
+</software-information>
+</rpc-reply>`,
+			wantTech:    "juniper-srx",
+			wantVersion: "20.4R3-S9.2",
+			wantModel:   "SRX550M",
 		},
 	}
 
