@@ -115,7 +115,7 @@ func TestQNAPFingerprinter_Fingerprint_Valid(t *testing.T) {
 			expectedCPE:     "cpe:2.3:o:qnap:qts:4.4.1:*:*:*:*:*:*:*",
 			expectedMetadata: map[string]any{
 				"build_number": "1216",
-				"buildDate":   "20200214",
+				"build_date":   "20200214",
 				"model":       "TS-873U-RP",
 				"hostname":    "QNAP-NAS",
 			},
@@ -134,7 +134,7 @@ func TestQNAPFingerprinter_Fingerprint_Valid(t *testing.T) {
 			expectedCPE:     "cpe:2.3:o:qnap:qts:5.1.0:*:*:*:*:*:*:*",
 			expectedMetadata: map[string]any{
 				"build_number": "2399",
-				"buildDate":   "20230609",
+				"build_date":   "20230609",
 				"model":       "TS-464",
 				"hostname":    "NAS-OFFICE",
 			},

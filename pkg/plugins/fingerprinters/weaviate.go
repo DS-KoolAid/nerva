@@ -92,7 +92,7 @@ func (f *WeaviateFingerprinter) Fingerprint(resp *http.Response, body []byte) (*
 
 	metadata := map[string]any{
 		"hostname":        meta.Hostname,
-		"anonymousAccess": true,
+		"anonymous_access": true,
 	}
 	if len(moduleNames) > 0 {
 		metadata["modules"] = moduleNames

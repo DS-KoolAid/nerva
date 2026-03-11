@@ -402,8 +402,8 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 			assert.Equal(t, tt.wantVersion, result.Version)
 
 			// Check metadata - serviceCount (always present)
-			serviceCount, exists := result.Metadata["serviceCount"]
-			require.True(t, exists, "Expected serviceCount in metadata")
+			serviceCount, exists := result.Metadata["service_count"]
+			require.True(t, exists, "Expected service_count in metadata")
 			assert.Equal(t, tt.wantServiceCount, serviceCount)
 
 			// Check metadata - services array (only if services exist)
@@ -417,7 +417,7 @@ func TestJaegerFingerprinter_Fingerprint_Valid(t *testing.T) {
 			} else {
 				// When no services, services key should not be present
 				_, exists := result.Metadata["services"]
-				assert.False(t, exists, "Did not expect services in metadata when serviceCount is 0")
+				assert.False(t, exists, "Did not expect services in metadata when service_count is 0")
 			}
 
 			// Check metadata - total
@@ -601,7 +601,7 @@ func TestJaegerFingerprinter_Integration(t *testing.T) {
 			found = true
 			assert.Equal(t, "", result.Version) // No version exposed via JSON endpoint
 			assert.Contains(t, result.CPEs, buildJaegerCPE(""))
-			serviceCount, exists := result.Metadata["serviceCount"]
+			serviceCount, exists := result.Metadata["service_count"]
 			assert.True(t, exists)
 			assert.Equal(t, 4, serviceCount)
 		}

@@ -131,7 +131,7 @@ func (f *TeamCityFingerprinter) Fingerprint(resp *http.Response, body []byte) (*
 
 	// Extract nodeId from response header (present on all TeamCity responses)
 	if nodeId := resp.Header.Get("TeamCity-Node-Id"); nodeId != "" {
-		metadata["nodeId"] = nodeId
+		metadata["node_id"] = nodeId
 		detected = true
 	}
 

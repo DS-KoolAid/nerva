@@ -172,7 +172,7 @@ func TestWeaviateFingerprinter_Fingerprint_ValidWeaviate(t *testing.T) {
 			assert.Equal(t, "http://[::]:8080", result.Metadata["hostname"])
 
 			// Anonymous access is always noted
-			assert.Equal(t, true, result.Metadata["anonymousAccess"])
+			assert.Equal(t, true, result.Metadata["anonymous_access"])
 
 			if tt.hasModules {
 				assert.Equal(t, tt.expectedModules, result.Metadata["modules"])
