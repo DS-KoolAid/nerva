@@ -93,6 +93,7 @@ const (
 	ProtoSSH        = "ssh"
 	ProtoStun       = "stun"
 	ProtoSybase     = "sybase"
+	ProtoTeamViewer = "teamviewer"
 	ProtoTelnet     = "telnet"
 	ProtoVNC        = "vnc"
 	ProtoUnknown    = "unknown"
@@ -151,6 +152,10 @@ func (e Service) Metadata() Metadata {
 		return p
 	case ProtoVNC:
 		var p ServiceVNC
+		_ = json.Unmarshal(e.Raw, &p)
+		return p
+	case ProtoTeamViewer:
+		var p ServiceTeamViewer
 		_ = json.Unmarshal(e.Raw, &p)
 		return p
 	case ProtoTelnet:
@@ -502,6 +507,12 @@ func (e ServiceMSSQL) Type() string { return ProtoMSSQL }
 type ServiceVNC struct{}
 
 func (e ServiceVNC) Type() string { return ProtoVNC }
+
+type ServiceTeamViewer struct {
+	CPEs []string `json:"cpes,omitempty"`
+}
+
+func (e ServiceTeamViewer) Type() string { return ProtoTeamViewer }
 
 type ServiceTelnet struct {
 	ServerData string `json:"serverData"`

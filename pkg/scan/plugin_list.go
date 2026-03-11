@@ -69,6 +69,7 @@ import (
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/ssh"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/stun"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/sybase"
+	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/teamviewer"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/telnet"
 	_ "github.com/praetorian-inc/nerva/pkg/plugins/services/vnc"
 )
