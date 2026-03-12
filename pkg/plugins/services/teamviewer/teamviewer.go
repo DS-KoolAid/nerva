@@ -26,6 +26,14 @@ type TeamViewerPlugin struct{}
 
 const TEAMVIEWER = "TeamViewer"
 
+// Known TeamViewer command bytes
+const (
+	cmdPing   = 0x10 // CMD_PING
+	cmdPingOK = 0x11 // CMD_PINGOK
+	cmdHelo   = 0x16 // CMD_HELO
+	cmdHeloOK = 0x17 // CMD_HELOOK
+)
+
 // CMD_PING probe for TeamViewer detection
 // Magic (0x1724) + CMD_PING (0x10) + Length (0x04) + Padding (0x00000000)
 var cmdPingProbe = []byte{0x17, 0x24, 0x10, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00}
@@ -43,12 +51,28 @@ func checkTeamViewer(data []byte) error {
 
 	// Check primary magic bytes (0x17 0x24)
 	if data[0] == 0x17 && data[1] == 0x24 {
-		return nil
+		switch data[2] {
+		case cmdPing, cmdPingOK, cmdHelo, cmdHeloOK:
+			return nil
+		default:
+			return &utils.InvalidResponseErrorInfo{
+				Service: TEAMVIEWER,
+				Info:    "unknown command byte",
+			}
+		}
 	}
 
 	// Check secondary magic bytes (0x11 0x30)
 	if data[0] == 0x11 && data[1] == 0x30 {
-		return nil
+		switch data[2] {
+		case cmdPing, cmdPingOK, cmdHelo, cmdHeloOK:
+			return nil
+		default:
+			return &utils.InvalidResponseErrorInfo{
+				Service: TEAMVIEWER,
+				Info:    "unknown command byte",
+			}
+		}
 	}
 
 	return &utils.InvalidResponseErrorInfo{

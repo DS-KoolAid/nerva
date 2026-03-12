@@ -136,6 +136,11 @@ func TestCheckTeamViewer(t *testing.T) {
 			data:    []byte{0x17, 0x24, 0x10, 0xFF, 0xFF, 0xFF, 0xFF},
 			wantErr: false,
 		},
+		{
+			name:    "valid magic but unknown command byte",
+			data:    []byte{0x17, 0x24, 0xFF, 0x04, 0x00},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
