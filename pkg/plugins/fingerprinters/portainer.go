@@ -74,9 +74,14 @@ type portainerStatusResponse struct {
 	InstanceID string `json:"InstanceID"`
 }
 
-// portainerVersionRegex validates Portainer version format
-// Accepts: 2.21.0, 2.19.4, 2.0.0
-var portainerVersionRegex = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
+// portainerSafeVersionRegex rejects versions containing CPE-unsafe characters.
+// Accepts alphanumeric, dots, hyphens, plus (semver pre-release and build metadata).
+var portainerSafeVersionRegex = regexp.MustCompile(`^[0-9a-zA-Z.\-+]+$`)
+
+// portainerVersionExtract extracts the semver core (X.Y.Z) for CPE construction.
+// Pre-release/build suffixes (e.g. 2.21.0-alpha, 2.21.0+build.123) are stripped for CPE
+// but preserved in metadata as raw_version.
+var portainerVersionExtract = regexp.MustCompile(`^(\d+\.\d+\.\d+)`)
 
 func init() {
 	Register(&PortainerFingerprinter{})
@@ -105,19 +110,28 @@ func (f *PortainerFingerprinter) Fingerprint(resp *http.Response, body []byte) (
 		return nil, nil
 	}
 
-	// Validate version format to prevent CPE injection
-	if !portainerVersionRegex.MatchString(status.Version) {
+	// Reject versions with CPE-unsafe characters (colons, wildcards, etc.)
+	if !portainerSafeVersionRegex.MatchString(status.Version) {
+		return nil, nil
+	}
+
+	// Extract semver core for CPE; pre-release/build metadata is preserved in raw_version
+	cpeVersion := status.Version
+	if matches := portainerVersionExtract.FindStringSubmatch(status.Version); matches != nil {
+		cpeVersion = matches[1]
+	} else {
 		return nil, nil
 	}
 
 	metadata := map[string]any{
-		"instanceId": status.InstanceID,
+		"instanceId":  status.InstanceID,
+		"raw_version": status.Version,
 	}
 
 	return &FingerprintResult{
 		Technology: "portainer",
-		Version:    status.Version,
-		CPEs:       []string{buildPortainerCPE(status.Version)},
+		Version:    cpeVersion,
+		CPEs:       []string{buildPortainerCPE(cpeVersion)},
 		Metadata:   metadata,
 	}, nil
 }

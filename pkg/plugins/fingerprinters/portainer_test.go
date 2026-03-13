@@ -83,6 +83,7 @@ func TestPortainerFingerprinter_Fingerprint_Valid(t *testing.T) {
 		name           string
 		body           string
 		wantVersion    string
+		wantRawVersion string
 		wantInstanceID string
 	}{
 		{
@@ -92,6 +93,7 @@ func TestPortainerFingerprinter_Fingerprint_Valid(t *testing.T) {
 				"InstanceID": "299ab403-70a8-4c05-92f7-bf7a994d50df"
 			}`,
 			wantVersion:    "2.21.0",
+			wantRawVersion: "2.21.0",
 			wantInstanceID: "299ab403-70a8-4c05-92f7-bf7a994d50df",
 		},
 		{
@@ -101,6 +103,7 @@ func TestPortainerFingerprinter_Fingerprint_Valid(t *testing.T) {
 				"InstanceID": "abc12345-def6-7890-abcd-ef1234567890"
 			}`,
 			wantVersion:    "2.0.0",
+			wantRawVersion: "2.0.0",
 			wantInstanceID: "abc12345-def6-7890-abcd-ef1234567890",
 		},
 		{
@@ -110,7 +113,38 @@ func TestPortainerFingerprinter_Fingerprint_Valid(t *testing.T) {
 				"InstanceID": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
 			}`,
 			wantVersion:    "2.39.0",
+			wantRawVersion: "2.39.0",
 			wantInstanceID: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+		},
+		{
+			name: "Pre-release version strips suffix for CPE",
+			body: `{
+				"Version": "2.21.0-alpha",
+				"InstanceID": "aaa11111-bb22-cc33-dd44-ee5555555555"
+			}`,
+			wantVersion:    "2.21.0",
+			wantRawVersion: "2.21.0-alpha",
+			wantInstanceID: "aaa11111-bb22-cc33-dd44-ee5555555555",
+		},
+		{
+			name: "Build metadata version strips suffix for CPE",
+			body: `{
+				"Version": "2.21.0+build.123",
+				"InstanceID": "bbb22222-cc33-dd44-ee55-ff6666666666"
+			}`,
+			wantVersion:    "2.21.0",
+			wantRawVersion: "2.21.0+build.123",
+			wantInstanceID: "bbb22222-cc33-dd44-ee55-ff6666666666",
+		},
+		{
+			name: "Pre-release with rc suffix",
+			body: `{
+				"Version": "2.22.0-rc1",
+				"InstanceID": "ccc33333-dd44-ee55-ff66-001111111111"
+			}`,
+			wantVersion:    "2.22.0",
+			wantRawVersion: "2.22.0-rc1",
+			wantInstanceID: "ccc33333-dd44-ee55-ff66-001111111111",
 		},
 	}
 
@@ -140,8 +174,11 @@ func TestPortainerFingerprinter_Fingerprint_Valid(t *testing.T) {
 			if instanceID, ok := result.Metadata["instanceId"].(string); !ok || instanceID != tt.wantInstanceID {
 				t.Errorf("Metadata[instanceId] = %v, want %v", result.Metadata["instanceId"], tt.wantInstanceID)
 			}
+			if rawVersion, ok := result.Metadata["raw_version"].(string); !ok || rawVersion != tt.wantRawVersion {
+				t.Errorf("Metadata[raw_version] = %v, want %v", result.Metadata["raw_version"], tt.wantRawVersion)
+			}
 
-			// Check CPE
+			// Check CPE uses normalized version
 			if len(result.CPEs) == 0 {
 				t.Error("Expected at least one CPE")
 			}
@@ -179,16 +216,16 @@ func TestPortainerFingerprinter_Fingerprint_Invalid(t *testing.T) {
 			body: "",
 		},
 		{
-			name: "Version with CPE injection attempt",
+			name: "Version with CPE injection attempt (colons)",
 			body: `{"Version": "2.0.0:*:*:*:*:*:*:*", "InstanceID": "abc123"}`,
 		},
 		{
-			name: "Non-semver version",
+			name: "Non-semver version without digits",
 			body: `{"Version": "latest", "InstanceID": "abc123"}`,
 		},
 		{
-			name: "Version with extra segments",
-			body: `{"Version": "2.21.0.1", "InstanceID": "abc123"}`,
+			name: "Version with spaces",
+			body: `{"Version": "2.21.0 beta", "InstanceID": "abc123"}`,
 		},
 	}
 
