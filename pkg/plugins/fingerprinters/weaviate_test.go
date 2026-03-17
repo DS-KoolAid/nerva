@@ -106,7 +106,7 @@ func TestWeaviateFingerprinter_Fingerprint_ValidWeaviate(t *testing.T) {
 					}
 				},
 				"version": "1.24.1",
-				"git_hash": "abc123def"
+				"gitHash": "abc123def"
 			}`,
 			expectedTech:    "weaviate",
 			expectedVersion: "1.24.1",
@@ -137,7 +137,7 @@ func TestWeaviateFingerprinter_Fingerprint_ValidWeaviate(t *testing.T) {
 					"text2vec-contextionary": {}
 				},
 				"version": "1.25.0-rc1",
-				"git_hash": "ff00ff"
+				"gitHash": "ff00ff"
 			}`,
 			expectedTech:    "weaviate",
 			expectedVersion: "1.25.0",

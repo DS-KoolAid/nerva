@@ -31,7 +31,7 @@ type weaviateMetaResponse struct {
 	Hostname string                 `json:"hostname"`
 	Version  string                 `json:"version"`
 	Modules  map[string]interface{} `json:"modules"`
-	GitHash  string                 `json:"git_hash"`
+	GitHash  string                 `json:"gitHash"`
 }
 
 // weaviateSemverPattern matches the leading X.Y.Z part of a version string.
