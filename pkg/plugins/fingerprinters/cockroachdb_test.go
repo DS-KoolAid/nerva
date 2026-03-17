@@ -95,7 +95,7 @@ func TestCockroachDBFingerprinter_Fingerprint_ValidCockroachDB(t *testing.T) {
 				"nodes": [
 					{
 						"node_id": 1,
-						"server_version": {
+						"ServerVersion": {
 							"major": 26,
 							"minor": 1,
 							"patch": 0,
@@ -119,7 +119,7 @@ func TestCockroachDBFingerprinter_Fingerprint_ValidCockroachDB(t *testing.T) {
 				"nodes": [
 					{
 						"node_id": 1,
-						"server_version": {
+						"ServerVersion": {
 							"major": 24,
 							"minor": 3,
 							"patch": 5,
@@ -129,7 +129,7 @@ func TestCockroachDBFingerprinter_Fingerprint_ValidCockroachDB(t *testing.T) {
 					},
 					{
 						"node_id": 2,
-						"server_version": {
+						"ServerVersion": {
 							"major": 24,
 							"minor": 3,
 							"patch": 5,
@@ -153,7 +153,7 @@ func TestCockroachDBFingerprinter_Fingerprint_ValidCockroachDB(t *testing.T) {
 				"nodes": [
 					{
 						"node_id": 1,
-						"server_version": {
+						"ServerVersion": {
 							"major": 23,
 							"minor": 2,
 							"patch": 10,
@@ -264,7 +264,7 @@ func TestCockroachDBFingerprinter_Fingerprint_MissingBuildTag_FallbackToServerVe
 		"nodes": [
 			{
 				"node_id": 1,
-				"server_version": {
+				"ServerVersion": {
 					"major": 26,
 					"minor": 1,
 					"patch": 0,
@@ -297,7 +297,7 @@ func TestCockroachDBFingerprinter_Fingerprint_NoVersionInfo(t *testing.T) {
 		"nodes": [
 			{
 				"node_id": 1,
-				"server_version": {
+				"ServerVersion": {
 					"major": 0,
 					"minor": 0,
 					"patch": 0,
@@ -348,7 +348,7 @@ func TestCockroachDBFingerprinter_Fingerprint_CPEInjectionPrevention(t *testing.
 				"nodes": [
 					{
 						"node_id": 1,
-						"server_version": {
+						"ServerVersion": {
 							"major": 1,
 							"minor": 0,
 							"patch": 0,
@@ -417,7 +417,7 @@ func TestCockroachDBFingerprinter_Integration(t *testing.T) {
 		"nodes": [
 			{
 				"node_id": 1,
-				"server_version": {
+				"ServerVersion": {
 					"major": 26,
 					"minor": 1,
 					"patch": 0,
