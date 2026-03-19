@@ -123,9 +123,11 @@ type ollamaModel struct {
 	Details map[string]interface{} `json:"details"`
 }
 
-// ollamaVersionRegex validates Ollama version format
-// Accepts: 0.5.1, 1.0.0, etc. (semantic versioning)
-// Rejects: versions with special characters that could enable CPE injection
+// ollamaVersionRegex validates Ollama version format for CPE safety.
+// Accepts: 0.5.1, 1.0.0, etc. (strict semantic versioning with exactly 3 components)
+// Rejects: pre-release versions (0.5.1-rc1), build metadata (0.5.1+build), and
+// any special characters that could enable CPE injection attacks.
+// This strict validation prioritizes security over completeness.
 var ollamaVersionRegex = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 
 func init() {
@@ -160,9 +162,7 @@ func (f *OllamaFingerprinter) Fingerprint(resp *http.Response, body []byte) (*Fi
 			Technology: "ollama",
 			Version:    versionResp.Version,
 			CPEs:       []string{buildOllamaCPE(versionResp.Version)},
-			Metadata: map[string]any{
-				"model_count": 0, // Version endpoint doesn't include model info
-			},
+			Metadata:   map[string]any{},
 		}, nil
 	}
 

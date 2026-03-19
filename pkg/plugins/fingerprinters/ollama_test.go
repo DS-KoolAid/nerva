@@ -128,13 +128,9 @@ func TestOllamaFingerprinter_Fingerprint_Valid_Version(t *testing.T) {
 				t.Error("Expected at least one CPE")
 			}
 
-			// Metadata should be empty or minimal for version-only responses
-			if result.Metadata != nil {
-				if modelCount, ok := result.Metadata["model_count"]; ok {
-					if modelCount.(int) != 0 {
-						t.Errorf("Expected model_count = 0 for version-only response, got %v", modelCount)
-					}
-				}
+			// Metadata should be empty for version-only responses (no model info available)
+			if result.Metadata != nil && len(result.Metadata) > 0 {
+				t.Errorf("Expected empty metadata for version-only response, got %v", result.Metadata)
 			}
 		})
 	}
@@ -342,7 +338,11 @@ func TestBuildOllamaCPE(t *testing.T) {
 }
 
 func TestOllamaFingerprinter_Integration(t *testing.T) {
-	// Register the fingerprinter (should happen in init(), but we test it anyway)
+	// Save and restore global state to prevent test pollution
+	saved := httpFingerprinters
+	t.Cleanup(func() { httpFingerprinters = saved })
+	httpFingerprinters = nil
+
 	fp := &OllamaFingerprinter{}
 	Register(fp)
 
