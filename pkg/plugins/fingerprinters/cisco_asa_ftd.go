@@ -67,6 +67,14 @@ var asaFTDServerVersionRegex = regexp.MustCompile(`(?i)(?:ASDM|ASA|Firepower)[/\
 // Matches: Cisco ASDM/7.18(1)
 var asdmVersionRegex = regexp.MustCompile(`(?i)ASDM/(\d+\.\d+(?:\(\d+\))?)`)
 
+// asaFTDModelPattern extracts hardware model from Server header or body.
+// Matches: ASA 5506, ASA 5525-X, Firepower 2110, FPR-2130, ASA5506, Firepower-1010
+var asaFTDModelPattern = regexp.MustCompile(`(?i)(?:ASA[\s-]?(\d{4}(?:-X)?)|(?:Firepower|FPR)[\s-]?(\d{4}))`)
+
+// anyconnectVersionPattern extracts AnyConnect client version from body.
+// Matches: anyconnect-win-4.10.07073, anyconnect-macos-4.10.07073, AnyConnect version 4.10.07073
+var anyconnectVersionPattern = regexp.MustCompile(`(?i)anyconnect[-\s]+(?:win|macos|linux|version)[-\s]+(\d+\.\d+\.\d+)`)
+
 // ASA/FTD body detection patterns (for metadata enrichment only)
 var (
 	asaFTDCSCOEPattern      = regexp.MustCompile(`(?i)CSCOE`)
@@ -156,6 +164,16 @@ func (f *CiscoASAFTDFingerprinter) Fingerprint(resp *http.Response, body []byte)
 		}
 	}
 
+	// Extract platform model from Server header and body
+	if model := extractASAFTDModel(serverHeader, bodyStr); model != "" {
+		metadata["platform_model"] = model
+	}
+
+	// Extract AnyConnect client version from body
+	if matches := anyconnectVersionPattern.FindStringSubmatch(bodyStr); len(matches) > 1 {
+		metadata["anyconnect_version"] = matches[1]
+	}
+
 	// Build technology name and CPE
 	var technology string
 	var cpe string
@@ -242,6 +260,28 @@ func extractASAFTDVersion(headers http.Header, body []byte, platformType string)
 		return matches[1]
 	}
 
+	return ""
+}
+
+// extractASAFTDModel extracts the hardware model number from the Server header or body.
+// Server header is checked first; body is the fallback.
+func extractASAFTDModel(serverHeader string, bodyStr string) string {
+	// Try Server header first
+	if matches := asaFTDModelPattern.FindStringSubmatch(serverHeader); len(matches) > 0 {
+		for i := 1; i < len(matches); i++ {
+			if matches[i] != "" {
+				return matches[i]
+			}
+		}
+	}
+	// Try body
+	if matches := asaFTDModelPattern.FindStringSubmatch(bodyStr); len(matches) > 0 {
+		for i := 1; i < len(matches); i++ {
+			if matches[i] != "" {
+				return matches[i]
+			}
+		}
+	}
 	return ""
 }
 

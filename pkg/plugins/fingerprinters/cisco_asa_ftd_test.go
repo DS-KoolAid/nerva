@@ -1013,6 +1013,164 @@ func TestIsASAFTDHeaderMatch(t *testing.T) {
 	}
 }
 
+func TestCiscoASAFTDFingerprinter_PlatformModelAndAnyConnect(t *testing.T) {
+	f := &CiscoASAFTDFingerprinter{}
+
+	tests := []struct {
+		name                   string
+		statusCode             int
+		headers                http.Header
+		body                   string
+		wantResult             bool
+		wantPlatformModel      string
+		wantAnyConnectVersion  string
+		wantNoPlatformModel    bool
+		wantNoAnyConnectVer    bool
+	}{
+		{
+			name:       "platform model from Server header ASA 5525-X",
+			statusCode: 200,
+			headers: http.Header{
+				"X-Asa-Version": []string{"9.16(4)"},
+				"Server":        []string{"Cisco ASA 5525-X"},
+			},
+			body:              "<html><body>Login</body></html>",
+			wantResult:        true,
+			wantPlatformModel: "5525-X",
+		},
+		{
+			name:       "platform model from body ASA5506",
+			statusCode: 200,
+			headers: http.Header{
+				"X-Asa-Version": []string{"9.16(4)"},
+			},
+			body:              "<html><body>Cisco ASA5506 WebVPN</body></html>",
+			wantResult:        true,
+			wantPlatformModel: "5506",
+		},
+		{
+			name:       "FTD model from Server header Firepower 2110",
+			statusCode: 200,
+			headers: http.Header{
+				"X-Transcend-Version": []string{"7.2.0"},
+				"Server":              []string{"Cisco Firepower 2110"},
+			},
+			body:              "<html><body>Login</body></html>",
+			wantResult:        true,
+			wantPlatformModel: "2110",
+		},
+		{
+			name:       "anyconnect version from body download link",
+			statusCode: 200,
+			headers: http.Header{
+				"X-Asa-Version": []string{"9.16(4)"},
+			},
+			body:                  `<a href="/CACHE/sdesktop/install/anyconnect-win-4.10.07073-webdeploy-k9.pkg">Download</a>`,
+			wantResult:            true,
+			wantAnyConnectVersion: "4.10.07073",
+		},
+		{
+			name:       "anyconnect version from body text",
+			statusCode: 200,
+			headers: http.Header{
+				"Server":     []string{"Cisco"},
+				"Set-Cookie": []string{"webvpnlogin=1; path=/"},
+			},
+			body:                  "<html>AnyConnect version 5.0.03072</html>",
+			wantResult:            true,
+			wantAnyConnectVersion: "5.0.03072",
+		},
+		{
+			name:       "no model or anyconnect version in minimal response",
+			statusCode: 200,
+			headers: http.Header{
+				"X-Asa-Version": []string{"9.16(4)"},
+			},
+			body:                "<html><body>Login</body></html>",
+			wantResult:          true,
+			wantNoPlatformModel: true,
+			wantNoAnyConnectVer: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := &http.Response{
+				StatusCode: tt.statusCode,
+				Header:     tt.headers,
+			}
+			result, err := f.Fingerprint(resp, []byte(tt.body))
+
+			if err != nil {
+				t.Errorf("Fingerprint() error = %v", err)
+				return
+			}
+
+			if tt.wantResult && result == nil {
+				t.Error("Fingerprint() returned nil, expected result")
+				return
+			}
+			if !tt.wantResult && result != nil {
+				t.Errorf("Fingerprint() returned result, expected nil")
+				return
+			}
+			if result == nil {
+				return
+			}
+
+			if tt.wantPlatformModel != "" {
+				if got, ok := result.Metadata["platform_model"]; !ok {
+					t.Errorf("platform_model not in metadata")
+				} else if got != tt.wantPlatformModel {
+					t.Errorf("platform_model = %q, want %q", got, tt.wantPlatformModel)
+				}
+			}
+			if tt.wantNoPlatformModel {
+				if _, ok := result.Metadata["platform_model"]; ok {
+					t.Errorf("platform_model should not be in metadata but is: %v", result.Metadata["platform_model"])
+				}
+			}
+			if tt.wantAnyConnectVersion != "" {
+				if got, ok := result.Metadata["anyconnect_version"]; !ok {
+					t.Errorf("anyconnect_version not in metadata")
+				} else if got != tt.wantAnyConnectVersion {
+					t.Errorf("anyconnect_version = %q, want %q", got, tt.wantAnyConnectVersion)
+				}
+			}
+			if tt.wantNoAnyConnectVer {
+				if _, ok := result.Metadata["anyconnect_version"]; ok {
+					t.Errorf("anyconnect_version should not be in metadata but is: %v", result.Metadata["anyconnect_version"])
+				}
+			}
+		})
+	}
+}
+
+func TestExtractASAFTDModel(t *testing.T) {
+	tests := []struct {
+		name         string
+		serverHeader string
+		body         string
+		want         string
+	}{
+		{"ASA 5525-X from Server", "Cisco ASA 5525-X", "", "5525-X"},
+		{"ASA5506 from body", "", "Cisco ASA5506 login", "5506"},
+		{"Firepower 2110 from Server", "Cisco Firepower 2110", "", "2110"},
+		{"FPR-2130 from body", "", "FPR-2130 management", "2130"},
+		{"no model", "Cisco", "login page", ""},
+		{"Server takes priority over body", "Cisco ASA 5525-X", "ASA5506 login", "5525-X"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractASAFTDModel(tt.serverHeader, tt.body)
+			if got != tt.want {
+				t.Errorf("extractASAFTDModel(%q, %q) = %q, want %q", tt.serverHeader, tt.body, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCiscoASAFTDFingerprinter_ShodanVectors_Additional(t *testing.T) {
 	f := &CiscoASAFTDFingerprinter{}
 
