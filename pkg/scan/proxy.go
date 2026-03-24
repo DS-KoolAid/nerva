@@ -15,8 +15,10 @@
 package scan
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"net"
@@ -104,8 +106,79 @@ func NewProxyDialer(config Config) (*ProxyDialer, error) {
 	}, nil
 }
 
+// dialHTTPConnect implements HTTP CONNECT tunneling for HTTP/HTTPS proxy schemes.
+func (pd *ProxyDialer) dialHTTPConnect(ctx context.Context, network, addr string) (net.Conn, error) {
+	// 1. Connect to the proxy server
+	proxyAddr := pd.parsedProxyURL.Host
+	if pd.parsedProxyURL.Port() == "" {
+		if pd.parsedProxyURL.Scheme == "https" {
+			proxyAddr = net.JoinHostPort(pd.parsedProxyURL.Hostname(), "443")
+		} else {
+			proxyAddr = net.JoinHostPort(pd.parsedProxyURL.Hostname(), "8080")
+		}
+	}
+
+	var conn net.Conn
+	var err error
+	if pd.parsedProxyURL.Scheme == "https" {
+		// TLS connection to proxy
+		conn, err = tls.DialWithDialer(pd.baseDialer, "tcp", proxyAddr, &tls.Config{
+			InsecureSkipVerify: true,
+		})
+	} else {
+		conn, err = pd.baseDialer.DialContext(ctx, "tcp", proxyAddr)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to HTTP proxy: %w", err)
+	}
+
+	// 2. Send CONNECT request
+	connectReq := fmt.Sprintf("CONNECT %s HTTP/1.1\r\nHost: %s\r\n", addr, addr)
+
+	// Add proxy auth if configured
+	if pd.parsedProxyURL.User != nil {
+		username := pd.parsedProxyURL.User.Username()
+		password, _ := pd.parsedProxyURL.User.Password()
+		auth := base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
+		connectReq += fmt.Sprintf("Proxy-Authorization: Basic %s\r\n", auth)
+	}
+	connectReq += "\r\n"
+
+	conn.SetDeadline(time.Now().Add(pd.timeout))
+	_, err = conn.Write([]byte(connectReq))
+	if err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("failed to send CONNECT: %w", err)
+	}
+
+	// 3. Read response
+	reader := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(reader, nil)
+	conn.SetDeadline(time.Time{})
+	if err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("failed to read CONNECT response: %w", err)
+	}
+	resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		conn.Close()
+		return nil, fmt.Errorf("HTTP CONNECT failed: %s", resp.Status)
+	}
+
+	return conn, nil
+}
+
 // DialContext performs context-aware dialing through the proxy.
 func (pd *ProxyDialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	scheme := strings.ToLower(pd.parsedProxyURL.Scheme)
+
+	// Route to HTTP CONNECT for http/https proxy schemes
+	if scheme == "http" || scheme == "https" {
+		return pd.dialHTTPConnect(ctx, network, addr)
+	}
+
+	// SOCKS5 path (existing code)
 	proxyDialer, err := proxy.FromURL(pd.parsedProxyURL, pd.baseDialer)
 	if err != nil {
 		// Sanitize proxy URL in error message to avoid credential leakage
