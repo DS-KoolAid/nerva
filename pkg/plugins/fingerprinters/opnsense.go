@@ -24,8 +24,9 @@
 //     or /ui/themes/opnsense/ asset paths, or Deciso B.V. copyright
 //
 // Version Detection:
-// - Not available from unauthenticated responses
-// - /api/core/firmware/info requires authentication
+// - Active probe to /api/core/firmware/info (JSON with product_id, product_version)
+// - Returns version when API is accessible (default creds or open API)
+// - API returning 401/403 still marks api_enabled=true in metadata
 //
 // Security Risks:
 //   - Default credentials: root/opnsense often unchanged
@@ -35,10 +36,21 @@
 package fingerprinters
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 )
+
+// opnsenseVersionRegex validates extracted version format for CPE safety.
+var opnsenseVersionRegex = regexp.MustCompile(`^\d+\.\d+(?:\.\d+)?$`)
+
+// opnsenseFirmwareInfo is the JSON response from /api/core/firmware/info.
+type opnsenseFirmwareInfo struct {
+	ProductID      string `json:"product_id"`
+	ProductVersion string `json:"product_version"`
+}
 
 type OPNsenseFingerprinter struct{}
 
@@ -48,6 +60,10 @@ func init() {
 
 func (f *OPNsenseFingerprinter) Name() string {
 	return "opnsense"
+}
+
+func (f *OPNsenseFingerprinter) ProbeEndpoint() string {
+	return "/api/core/firmware/info"
 }
 
 func (f *OPNsenseFingerprinter) Match(resp *http.Response) bool {
@@ -63,6 +79,11 @@ func (f *OPNsenseFingerprinter) Match(resp *http.Response) bool {
 	// Accept HTML responses for body-based detection.
 	ct := resp.Header.Get("Content-Type")
 	if strings.Contains(ct, "text/html") {
+		return true
+	}
+
+	// Accept JSON responses for API probe endpoint.
+	if strings.Contains(ct, "application/json") {
 		return true
 	}
 
@@ -116,10 +137,24 @@ func (f *OPNsenseFingerprinter) Fingerprint(resp *http.Response, body []byte) (*
 		metadata["management_interface"] = "web-admin"
 	}
 
+	// API probe: try to parse /api/core/firmware/info JSON response.
+	version := extractOPNsenseVersionFromAPI(body, resp)
+	if version != "" {
+		metadata["api_enabled"] = true
+	}
+
+	// API availability: 401/403 means API exists but requires auth.
+	if resp.StatusCode == 401 || resp.StatusCode == 403 {
+		ct := resp.Header.Get("Content-Type")
+		if strings.Contains(ct, "application/json") {
+			metadata["api_enabled"] = true
+		}
+	}
+
 	return &FingerprintResult{
 		Technology: "opnsense",
-		Version:    "",
-		CPEs:       []string{buildOPNsenseCPE("")},
+		Version:    version,
+		CPEs:       []string{buildOPNsenseCPE(version)},
 		Metadata:   metadata,
 	}, nil
 }
@@ -150,6 +185,37 @@ func extractOPNsenseHostname(bodyStr string) string {
 		return ""
 	}
 	return suffix
+}
+
+// extractOPNsenseVersionFromAPI parses the /api/core/firmware/info JSON response.
+// Returns the version if the response contains a valid OPNsense product_id and version.
+func extractOPNsenseVersionFromAPI(body []byte, resp *http.Response) string {
+	ct := resp.Header.Get("Content-Type")
+	if !strings.Contains(ct, "application/json") {
+		return ""
+	}
+
+	var info opnsenseFirmwareInfo
+	if err := json.Unmarshal(body, &info); err != nil {
+		return ""
+	}
+
+	// Confirm this is OPNsense (not some other API).
+	if info.ProductID != "opnsense" {
+		return ""
+	}
+
+	version := strings.TrimSpace(info.ProductVersion)
+	if version == "" {
+		return ""
+	}
+
+	// Validate version format for CPE safety.
+	if !opnsenseVersionRegex.MatchString(version) {
+		return ""
+	}
+
+	return version
 }
 
 func buildOPNsenseCPE(version string) string {

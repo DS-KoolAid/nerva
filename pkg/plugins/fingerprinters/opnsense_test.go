@@ -65,8 +65,14 @@ func TestOPNsenseFingerprinter_Match(t *testing.T) {
 			expected:   false,
 		},
 		{
-			name:       "rejects non-HTML without OPNsense server",
+			name:       "matches JSON content type for API probe",
 			headers:    map[string]string{"Server": "nginx", "Content-Type": "application/json"},
+			statusCode: 200,
+			expected:   true,
+		},
+		{
+			name:       "rejects non-HTML non-JSON without OPNsense server",
+			headers:    map[string]string{"Server": "nginx", "Content-Type": "application/octet-stream"},
 			statusCode: 200,
 			expected:   false,
 		},
@@ -340,6 +346,96 @@ func TestOPNsenseFingerprinter_Fingerprint_NoMatch(t *testing.T) {
 			assert.Nil(t, result)
 		})
 	}
+}
+
+func TestOPNsenseFingerprinter_ProbeEndpoint(t *testing.T) {
+	fp := &OPNsenseFingerprinter{}
+	assert.Equal(t, "/api/core/firmware/info", fp.ProbeEndpoint())
+}
+
+func TestOPNsenseFingerprinter_Fingerprint_APIVersionDetection(t *testing.T) {
+	// Simulates the response from /api/core/firmware/info.
+	body := []byte(`{"product_id":"opnsense","product_version":"26.1.3"}`)
+
+	fp := &OPNsenseFingerprinter{}
+	header := http.Header{}
+	header.Set("Server", "OPNsense")
+	header.Set("Content-Type", "application/json")
+	resp := &http.Response{
+		StatusCode: 200,
+		Header:     header,
+	}
+
+	result, err := fp.Fingerprint(resp, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.Equal(t, "opnsense", result.Technology)
+	assert.Equal(t, "26.1.3", result.Version)
+	assert.Equal(t, true, result.Metadata["api_enabled"])
+	assert.Equal(t, "cpe:2.3:a:opnsense:opnsense:26.1.3:*:*:*:*:*:*:*", result.CPEs[0])
+}
+
+func TestOPNsenseFingerprinter_Fingerprint_APIAuthRequired(t *testing.T) {
+	// API returns 401 — confirms API is available but needs auth.
+	body := []byte(`{"status":401,"message":"Authentication Required"}`)
+
+	fp := &OPNsenseFingerprinter{}
+	header := http.Header{}
+	header.Set("Server", "OPNsense")
+	header.Set("Content-Type", "application/json")
+	resp := &http.Response{
+		StatusCode: 401,
+		Header:     header,
+	}
+
+	result, err := fp.Fingerprint(resp, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.Equal(t, "opnsense", result.Technology)
+	assert.Equal(t, "", result.Version)
+	assert.Equal(t, true, result.Metadata["api_enabled"])
+}
+
+func TestOPNsenseFingerprinter_Fingerprint_APIWrongProduct(t *testing.T) {
+	// API returns JSON but product_id isn't "opnsense" — no version extracted.
+	body := []byte(`{"product_id":"pfsense","product_version":"2.7.0"}`)
+
+	fp := &OPNsenseFingerprinter{}
+	header := http.Header{}
+	header.Set("Server", "OPNsense")
+	header.Set("Content-Type", "application/json")
+	resp := &http.Response{
+		StatusCode: 200,
+		Header:     header,
+	}
+
+	result, err := fp.Fingerprint(resp, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.Equal(t, "", result.Version)
+}
+
+func TestOPNsenseFingerprinter_Fingerprint_APIInvalidVersion(t *testing.T) {
+	// Reject versions with unsafe characters for CPE injection prevention.
+	body := []byte(`{"product_id":"opnsense","product_version":"26.1.3; rm -rf /"}`)
+
+	fp := &OPNsenseFingerprinter{}
+	header := http.Header{}
+	header.Set("Server", "OPNsense")
+	header.Set("Content-Type", "application/json")
+	resp := &http.Response{
+		StatusCode: 200,
+		Header:     header,
+	}
+
+	result, err := fp.Fingerprint(resp, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.Equal(t, "", result.Version)
 }
 
 func TestBuildOPNsenseCPE(t *testing.T) {
