@@ -96,7 +96,7 @@ func (p *AnyDeskPlugin) Run(conn net.Conn, timeout time.Duration, target plugins
 }
 
 func (p *AnyDeskPlugin) PortPriority(port uint16) bool {
-	return port == 7070
+	return port == 7070 || port == 6568
 }
 
 func (p *AnyDeskPlugin) Name() string {

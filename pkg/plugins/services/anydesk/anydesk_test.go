@@ -56,9 +56,9 @@ func TestAnyDeskPlugin_PortPriority(t *testing.T) {
 		want bool
 	}{
 		{7070, true},
+		{6568, true},
 		{443, false},
 		{8080, false},
-		{6568, false},
 	}
 
 	for _, tt := range tests {
