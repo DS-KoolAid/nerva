@@ -22,11 +22,10 @@ import (
 	"strings"
 )
 
-// YugabyteDBMasterFingerprinter detects YugabyteDB Master via /api/v1/version endpoint (port 7000)
-type YugabyteDBMasterFingerprinter struct{}
-
-// YugabyteDBTServerFingerprinter detects YugabyteDB TServer via /api/v1/version endpoint (port 9000)
-type YugabyteDBTServerFingerprinter struct{}
+// YugabyteDBFingerprinter detects YugabyteDB via /api/v1/version endpoint.
+// Note: Master typically runs on port 7000, TServer on port 9000.
+// Node type cannot be determined from the API response alone.
+type YugabyteDBFingerprinter struct{}
 
 // yugabyteDBResponse represents the JSON response from /api/v1/version endpoint
 type yugabyteDBResponse struct {
@@ -48,27 +47,24 @@ type yugabyteDBVersionInfo struct {
 var yugabyteDBVersionRegex = regexp.MustCompile(`^[\d\.\-a-zA-Z]+$`)
 
 func init() {
-	Register(&YugabyteDBMasterFingerprinter{})
-	Register(&YugabyteDBTServerFingerprinter{})
+	Register(&YugabyteDBFingerprinter{})
 }
 
-// YugabyteDB Master Methods
-
-func (f *YugabyteDBMasterFingerprinter) Name() string {
-	return "yugabytedb-master"
+func (f *YugabyteDBFingerprinter) Name() string {
+	return "yugabytedb"
 }
 
-func (f *YugabyteDBMasterFingerprinter) ProbeEndpoint() string {
+func (f *YugabyteDBFingerprinter) ProbeEndpoint() string {
 	return "/api/v1/version"
 }
 
-func (f *YugabyteDBMasterFingerprinter) Match(resp *http.Response) bool {
+func (f *YugabyteDBFingerprinter) Match(resp *http.Response) bool {
 	// YugabyteDB returns JSON at /api/v1/version endpoint
 	contentType := resp.Header.Get("Content-Type")
 	return strings.Contains(contentType, "application/json")
 }
 
-func (f *YugabyteDBMasterFingerprinter) Fingerprint(resp *http.Response, body []byte) (*FingerprintResult, error) {
+func (f *YugabyteDBFingerprinter) Fingerprint(resp *http.Response, body []byte) (*FingerprintResult, error) {
 	// Parse JSON response
 	var ybResponse yugabyteDBResponse
 	if err := json.Unmarshal(body, &ybResponse); err != nil {
@@ -90,8 +86,9 @@ func (f *YugabyteDBMasterFingerprinter) Fingerprint(resp *http.Response, body []
 
 	// Build metadata
 	metadata := map[string]any{
-		"node_type":        "master",
 		"detection_method": "version_api",
+		// Document that port determines node type
+		"port_info": "master=7000, tserver=9000",
 	}
 
 	// Add optional fields if present
@@ -112,74 +109,7 @@ func (f *YugabyteDBMasterFingerprinter) Fingerprint(resp *http.Response, body []
 	}
 
 	return &FingerprintResult{
-		Technology: "yugabytedb-master",
-		Version:    version,
-		CPEs:       []string{buildYugabyteDBCPE(version)},
-		Metadata:   metadata,
-	}, nil
-}
-
-// YugabyteDB TServer Methods
-
-func (f *YugabyteDBTServerFingerprinter) Name() string {
-	return "yugabytedb-tserver"
-}
-
-func (f *YugabyteDBTServerFingerprinter) ProbeEndpoint() string {
-	return "/api/v1/version"
-}
-
-func (f *YugabyteDBTServerFingerprinter) Match(resp *http.Response) bool {
-	// YugabyteDB returns JSON at /api/v1/version endpoint
-	contentType := resp.Header.Get("Content-Type")
-	return strings.Contains(contentType, "application/json")
-}
-
-func (f *YugabyteDBTServerFingerprinter) Fingerprint(resp *http.Response, body []byte) (*FingerprintResult, error) {
-	// Parse JSON response
-	var ybResponse yugabyteDBResponse
-	if err := json.Unmarshal(body, &ybResponse); err != nil {
-		return nil, nil // Not valid JSON or not YugabyteDB format
-	}
-
-	// Extract version from version_info.version_string
-	version := ybResponse.VersionInfo.VersionString
-
-	// YugabyteDB detection: version_string must be non-empty
-	if version == "" {
-		return nil, nil
-	}
-
-	// Validate version format to prevent CPE injection
-	if !yugabyteDBVersionRegex.MatchString(version) {
-		return nil, nil
-	}
-
-	// Build metadata
-	metadata := map[string]any{
-		"node_type":        "tserver",
-		"detection_method": "version_api",
-	}
-
-	// Add optional fields if present
-	if ybResponse.VersionInfo.Edition != "" {
-		metadata["edition"] = ybResponse.VersionInfo.Edition
-	}
-	if ybResponse.VersionInfo.VersionMajor != "" {
-		metadata["version_major"] = ybResponse.VersionInfo.VersionMajor
-	}
-	if ybResponse.VersionInfo.VersionMinor != "" {
-		metadata["version_minor"] = ybResponse.VersionInfo.VersionMinor
-	}
-	if ybResponse.VersionInfo.VersionPatch != "" {
-		metadata["version_patch"] = ybResponse.VersionInfo.VersionPatch
-	}
-	if ybResponse.VersionInfo.BuildNumber != "" {
-		metadata["build_number"] = ybResponse.VersionInfo.BuildNumber
-	}
-
-	return &FingerprintResult{
-		Technology: "yugabytedb-tserver",
+		Technology: "yugabytedb",
 		Version:    version,
 		CPEs:       []string{buildYugabyteDBCPE(version)},
 		Metadata:   metadata,
