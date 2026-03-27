@@ -116,47 +116,90 @@ func DetectRPCInfoService(conn net.Conn, lookupResponse *plugins.ServiceRPC, tim
 	return true, parseRPCInfo(response, lookupResponse)
 }
 
+// readUint32 safely reads a big-endian uint32 from the front of buf.
+// Returns the value, the remaining buffer, and false if buf is too short.
+func readUint32(buf []byte) (uint32, []byte, bool) {
+	if len(buf) < 4 {
+		return 0, buf, false
+	}
+	v := binary.BigEndian.Uint32(buf[0:4])
+	return v, buf[4:], true
+}
+
+// readPaddedString reads a 4-byte length prefix, then that many bytes
+// (padded to a 4-byte boundary) from buf. Returns the string, the
+// remaining buffer, and false if the data is truncated or invalid.
+func readPaddedString(buf []byte) (string, []byte, bool) {
+	if len(buf) < 4 {
+		return "", buf, false
+	}
+	rawLen := int(binary.BigEndian.Uint32(buf[0:4]))
+	buf = buf[4:]
+	if rawLen < 0 || rawLen > len(buf) {
+		return "", buf, false
+	}
+	s := string(buf[0:rawLen])
+	// advance past the 4-byte-padded length
+	padded := rawLen
+	for padded%4 != 0 {
+		padded++
+	}
+	if padded > len(buf) {
+		return "", buf, false
+	}
+	return s, buf[padded:], true
+}
+
 func parseRPCInfo(response []byte, lookupResponse *plugins.ServiceRPC) error {
 	if len(response) < 0x20 {
 		return fmt.Errorf("invalid rpc length")
 	}
 	response = response[0x20:]
-	valueFollows := 1
 
+	valueFollows := 1
 	for valueFollows == 1 {
 		tmp := plugins.RPCB{}
-		if len(response) < 0x20 {
+
+		var v uint32
+		var s string
+		var ok bool
+
+		// Program (4 bytes) + Version (4 bytes) = need at least 8
+		v, response, ok = readUint32(response)
+		if !ok {
 			return nil
 		}
+		tmp.Program = int(v)
 
-		tmp.Program = int(binary.BigEndian.Uint32(response[0:4]))
-		response = response[4:]
-		tmp.Version = int(binary.BigEndian.Uint32(response[0:4]))
-		response = response[4:]
-		networkIDLen := int(binary.BigEndian.Uint32(response[0:4]))
-		for networkIDLen%4 != 0 {
-			networkIDLen++
+		v, response, ok = readUint32(response)
+		if !ok {
+			return nil
 		}
-		response = response[4:]
-		tmp.Protocol = string(response[0:networkIDLen])
-		response = response[networkIDLen:]
-		addressLen := int(binary.BigEndian.Uint32(response[0:4]))
-		for addressLen%4 != 0 {
-			addressLen++
-		}
-		response = response[4:]
-		tmp.Address = string(response[0:addressLen])
-		response = response[addressLen:]
-		ownerLen := int(binary.BigEndian.Uint32(response[0:4]))
-		for ownerLen%4 != 0 {
-			ownerLen++
-		}
-		response = response[4:]
-		tmp.Owner = string(response[0:ownerLen])
-		response = response[ownerLen:]
+		tmp.Version = int(v)
 
-		valueFollows = int(binary.BigEndian.Uint32(response[0:4]))
-		response = response[4:]
+		s, response, ok = readPaddedString(response)
+		if !ok {
+			return nil
+		}
+		tmp.Protocol = s
+
+		s, response, ok = readPaddedString(response)
+		if !ok {
+			return nil
+		}
+		tmp.Address = s
+
+		s, response, ok = readPaddedString(response)
+		if !ok {
+			return nil
+		}
+		tmp.Owner = s
+
+		v, response, ok = readUint32(response)
+		if !ok {
+			return nil
+		}
+		valueFollows = int(v)
 
 		lookupResponse.Entries = append(lookupResponse.Entries, tmp)
 	}
