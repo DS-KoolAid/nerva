@@ -1,4 +1,4 @@
-<img width="2976" height="1440" alt="Nerva - Fast service fingerprinting CLI for network reconnaissance supporting 120+ protocols" src="https://github.com/user-attachments/assets/8bb40a77-a2cf-42a2-acbb-195a36623e00" />
+<img width="2976" height="1440" alt="Nerva - Fast service fingerprinting CLI for network reconnaissance supporting 150+ protocols" src="https://github.com/user-attachments/assets/8bb40a77-a2cf-42a2-acbb-195a36623e00" />
 <h1 align="center">
   Nerva
   <br>
@@ -24,13 +24,15 @@
   <a href="#troubleshooting">Troubleshooting</a>
 </p>
 
-> **High-performance service fingerprinting written in Go.** Identify 120+ network protocols across TCP, UDP, and SCTP transports with rich metadata extraction.
+> **High-performance service fingerprinting written in Go.** Identify 150+ network protocols across TCP, UDP, and SCTP transports with rich metadata extraction.
 
 Nerva rapidly detects and identifies services running on open network ports. Use it alongside port scanners like [Naabu](https://github.com/projectdiscovery/naabu) to fingerprint discovered services, or integrate it into your security pipelines for automated reconnaissance.
 
 ## Features
 
-- **120+ Protocol Plugins** — Databases, remote access, web services, messaging, industrial, and telecom protocols
+- **150+ Protocol Plugins** — Databases, remote access, web services, messaging, industrial, and telecom protocols
+- **66 HTTP Fingerprinters** — Detect web technologies including firewalls, databases, AI/LLM servers, and more
+- **Security Misconfiguration Detection** — Identify common security issues like unauthenticated APIs and cleartext protocols (`--misconfigs`)
 - **Multi-Transport Support** — TCP (default), UDP (`--udp`), and SCTP (`--sctp`, Linux only)
 - **Proxy Support** — Route scanning traffic transparently through SOCKS5 or HTTP proxies with configurable DNS resolution
 - **Rich Metadata** — Extract versions, configurations, and security-relevant details from each service
@@ -119,11 +121,12 @@ EXAMPLES:
 | `--output` | `-o` | Output file path | stdout |
 | `--json` | | Output in JSON format | false |
 | `--csv` | | Output in CSV format | false |
+| `--misconfigs` | | Enable security misconfiguration detection | false |
 | `--proxy` | | Proxy URL (e.g. socks5://127.0.0.1:1080) | — |
 | `--proxy-auth` | | SOCKS5 Proxy Auth (e.g. username:password) | — |
 | `--dns-order` | | DNS resolution order: `p`, `l`, `lp`, `pl` | `lp` |
 | `--fast` | `-f` | Fast mode (default ports only) | false |
-| `--capabilities` | `-c` | list available capabilities and exit | false |
+| `--capabilities` | `-c` | List available capabilities and exit | false |
 | `--udp` | `-U` | Run UDP plugins | false |
 | `--sctp` | `-S` | Run SCTP plugins (Linux only) | false |
 | `--timeout` | `-w` | Timeout in milliseconds | 2000 |
@@ -170,6 +173,44 @@ nerva -l large-target-list.txt --fast --json
 
 ```sh
 nerva -t target.internal:80 --proxy socks5://127.0.0.1:1080 --dns-order p
+```
+
+### Security Misconfiguration Detection
+
+Nerva can identify common security misconfigurations when enabled with `--misconfigs`:
+
+```sh
+nerva -t example.com:2375 --misconfigs --json
+```
+
+**Detected misconfigurations:**
+
+| Finding ID | Severity | Description |
+|------------|----------|-------------|
+| `docker-unauth-api` | Critical | Docker API accessible without authentication |
+| `x11-unauth-access` | Critical | X11 server allows unauthenticated connections |
+| `smb-signing-not-required` | Medium | SMB signing not required (relay attack risk) |
+| `telnet-cleartext` | Medium | Telnet transmits credentials in cleartext |
+| `vnc-detected` | Medium | VNC detected (often weak authentication) |
+| `ftp-cleartext` | Low | FTP transmits credentials in cleartext |
+
+**Example output with misconfigs:**
+
+```json
+{
+  "host": "example.com",
+  "port": 2375,
+  "protocol": "docker",
+  "anonymous_access": true,
+  "security_findings": [
+    {
+      "id": "docker-unauth-api",
+      "severity": "critical",
+      "description": "Docker API accessible without authentication",
+      "evidence": "Successfully queried /version endpoint without credentials"
+    }
+  ]
+}
 ```
 
 ### Proxy Support
@@ -235,38 +276,117 @@ nerva -l huge-target-list.txt -W 50 -v
 
 ## Supported Protocols
 
-**120+ service detection plugins** across TCP, UDP, and SCTP:
+**150+ service detection plugins** across TCP, UDP, and SCTP:
 
-### HTTP Fingerprint Modules (24)
+### HTTP Fingerprint Modules (66)
 
-Technology detection for web services:
+Technology detection for web services, organized by category:
+
+#### Firewalls & Network Security (12)
 
 | Module | Description |
 |--------|-------------|
-| AnyConnect | Cisco AnyConnect SSL VPN |
-| ArangoDB | Multi-model database |
-| Artifactory | JFrog artifact repository |
-| BigIP | F5 BIG-IP load balancer |
-| ChromaDB | Vector database |
-| Consul | HashiCorp service mesh |
-| CouchDB | Apache document database |
-| Elasticsearch | Search engine |
-| etcd | Distributed key-value store |
+| Checkpoint | Check Point Security Gateway |
+| Cisco ASA/FTD | Cisco firewall/VPN appliances |
 | FortiGate | Fortinet firewall/VPN |
-| GlobalProtect | Palo Alto VPN |
+| GlobalProtect | Palo Alto Networks VPN |
+| Juniper | Juniper SRX firewalls |
+| OPNsense | OPNsense firewall |
+| pfSense | pfSense firewall |
+| SonicWall | SonicWall firewalls |
+| AnyConnect | Cisco AnyConnect SSL VPN |
+| Cisco Expressway | Cisco collaboration gateway |
+| BigIP | F5 BIG-IP load balancer |
+| WinRM | Windows Remote Management |
+
+#### AI/LLM & Machine Learning (6)
+
+| Module | Description |
+|--------|-------------|
+| Ollama | Self-hosted LLM inference server |
+| LocalAI | Self-hosted LLM inference (OpenAI-compatible) |
+| Open WebUI | LLM web interface (ChatGPT-style) |
+| Triton | NVIDIA Triton Inference Server |
+| Weaviate | Vector database for AI |
+| ChromaDB | Vector database |
+
+#### Databases & Data Stores (12)
+
+| Module | Description |
+|--------|-------------|
+| ArangoDB | Multi-model database |
+| CockroachDB | Distributed SQL database |
+| CouchDB | Apache document database |
+| Elasticsearch | Search and analytics engine |
+| etcd | Distributed key-value store |
+| Milvus | Vector database |
+| MinIO | S3-compatible object storage |
+| Pinecone | Vector database |
+| Redis Commander | Redis web management UI |
+| TiDB | Distributed SQL database |
+| YugabyteDB | Distributed SQL database |
+| Qdrant | Vector database |
+
+#### DevOps & Infrastructure (14)
+
+| Module | Description |
+|--------|-------------|
+| Artifactory | JFrog artifact repository |
+| Consul | HashiCorp service mesh |
+| Docker Registry | Container image registry |
+| Gitea | Self-hosted Git service |
 | Grafana | Observability platform |
+| Harbor | Container registry |
 | Jaeger | Distributed tracing |
 | Jenkins | CI/CD automation |
 | Kubernetes | Container orchestration API |
-| NATS | Message broker |
-| Pinecone | Vector database |
+| Portainer | Docker management UI |
 | Prometheus | Monitoring system |
-| QNAP QTS | NAS management |
-| SOAP | Web services |
+| Swagger/OpenAPI | API documentation |
 | TeamCity | CI/CD server |
-| UPnP | Universal Plug and Play |
 | Vault | HashiCorp secrets management |
-| WinRM | Windows Remote Management |
+
+#### Web Servers & Frameworks (10)
+
+| Module | Description |
+|--------|-------------|
+| Apache HTTPD | Apache HTTP Server |
+| Express.js | Node.js web framework |
+| GoAhead | Embedded web server |
+| Gotenberg | PDF generation service |
+| Guacamole | Apache remote desktop gateway |
+| SOAP | Web services |
+| Tengine | Alibaba web server |
+| Tomcat | Apache Tomcat |
+| WordPress | CMS platform |
+| UPnP | Universal Plug and Play |
+
+#### Enterprise & Business (8)
+
+| Module | Description |
+|--------|-------------|
+| AEM | Adobe Experience Manager |
+| Dynamics 365 | Microsoft Dynamics 365 / Power Apps |
+| Oracle Service Cloud | Oracle CRM platform |
+| SAP NetWeaver | SAP enterprise platform |
+| Splunk | Log management platform |
+| VMware Horizon | Virtual desktop infrastructure |
+| QNAP QTS | NAS management |
+| Exchange | Microsoft Exchange Server |
+
+#### Home & IoT (2)
+
+| Module | Description |
+|--------|-------------|
+| Home Assistant | Home automation platform |
+| UniFi/EdgeOS | Ubiquiti network devices |
+
+#### Other (2)
+
+| Module | Description |
+|--------|-------------|
+| Go pprof | Go profiling endpoints |
+| NATS | Message broker |
 
 ### Databases (20)
 
@@ -293,14 +413,16 @@ Technology detection for web services:
 | ChromaDB | HTTP | 8000 |
 | Pinecone | HTTP | 443 |
 
-### Remote Access (4)
+### Remote Access (6)
 
-| Protocol | Transport |
-|----------|-----------|
-| SSH | TCP |
-| RDP | TCP |
-| Telnet | TCP |
-| VNC | TCP |
+| Protocol | Transport | Default Ports |
+|----------|-----------|---------------|
+| SSH | TCP | 22, 2222 |
+| RDP | TCP/TLS | 3389 |
+| Telnet | TCP | 23 |
+| VNC | TCP | 5900 |
+| AnyDesk | TCP | 7070 |
+| TeamViewer | TCP | 5938 |
 
 ### Web & API (2)
 
@@ -336,22 +458,23 @@ Technology detection for web services:
 | SVN | TCP | 3690 |
 | LDAP | TCP/TLS | 389, 636 |
 
-### Network Services (10 UDP)
+### Network Services (11)
 
-| Protocol | Transport |
-|----------|-----------|
-| DNS | TCP/UDP |
-| DHCP | UDP |
-| NTP | UDP |
-| SNMP | UDP |
-| NetBIOS-NS | UDP |
-| STUN | UDP |
-| OpenVPN | UDP |
-| IPsec | UDP |
-| IPMI | UDP |
-| Echo | TCP/UDP |
+| Protocol | Transport | Default Ports |
+|----------|-----------|---------------|
+| DNS | TCP/UDP | 53 |
+| DHCP | UDP | 67, 68 |
+| NTP | UDP | 123 |
+| SNMP | UDP | 161 |
+| NetBIOS-NS | UDP | 137 |
+| STUN | UDP | 3478 |
+| OpenVPN | UDP | 1194 |
+| IPsec | UDP | 500 |
+| IPMI | UDP | 623 |
+| CoAP | UDP | 5683 |
+| Echo | TCP/UDP | 7 |
 
-### Industrial Control Systems (15)
+### Industrial Control Systems (18)
 
 | Protocol | Transport | Default Ports | Notes |
 |----------|-----------|---------------|-------|
@@ -365,6 +488,8 @@ Technology detection for web services:
 | MELSEC-Q | TCP | 5006, 5007 | Mitsubishi PLC |
 | KNXnet/IP | UDP | 3671 | Building automation |
 | IEC 104 | TCP | 2404 | Power grid SCADA |
+| DNP3 | TCP | 20000 | Power grid SCADA |
+| Codesys | TCP | 1200, 2455 | PLC runtime |
 | Fox | TCP | 1911 | Tridium Niagara |
 | PC WORX | TCP | 1962 | Phoenix Contact |
 | ProConOS | TCP | 20547 | PLC runtime |
@@ -375,12 +500,14 @@ Technology detection for web services:
 | GE SRTP | TCP | 18245 | GE PLC |
 | ATG | TCP | 10001 | Tank gauges |
 
-### Telecom & VoIP (15)
+### Telecom & VoIP (17)
 
 | Protocol | Transport | Default Ports | Notes |
 |----------|-----------|---------------|-------|
 | Diameter | TCP/SCTP | 3868 | LTE/5G AAA |
 | M3UA | SCTP | 2905 | SS7 over IP |
+| M2UA | SCTP | 2904 | MTP2 User Adaptation |
+| M2PA | SCTP | 3565 | MTP2 Peer Adaptation |
 | SGsAP | SCTP | 29118 | Circuit-switched fallback |
 | X2AP | SCTP | 36422 | LTE inter-eNodeB |
 | IUA | SCTP | 9900 | ISDN over IP |
@@ -395,7 +522,7 @@ Technology detection for web services:
 | GTP' | UDP | 3386 | GPRS charging |
 | PFCP | UDP | 8805 | 5G user plane |
 
-### VPN & Security (10)
+### VPN & Security (11)
 
 | Protocol | Transport | Default Ports |
 |----------|-----------|---------------|
@@ -404,6 +531,7 @@ Technology detection for web services:
 | WireGuard | UDP | 51820 |
 | IPsec/IKEv2 | UDP | 500, 4500 |
 | L2TP | UDP | 1701 |
+| SSTP | TCP | 443 |
 | GlobalProtect | HTTP | 443 |
 | AnyConnect | HTTP | 443 |
 | FortiGate | HTTP | 443 |
